@@ -95,8 +95,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Disclaimer ⚠️
 
-<<<<<<< HEAD
+
 This bot is for educational purposes.
-=======
-This bot is for educational purposes. 
->>>>>>> c19644d56fb355223fd2d7be390083f01a3fc387
+ 
+
