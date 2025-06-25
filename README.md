@@ -95,5 +95,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Disclaimer ⚠️
 
-This bot is for educational purposes. Make sure to comply with Twitter's Terms of Service and API usage guidelines.
-bot that analyzes X trends related to S&amp;P 500 companies and posts real-time updates. 
+This bot is for educational purposes. 
