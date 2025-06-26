@@ -124,53 +124,16 @@ Date and Time: {current_time}
         analysis += "Disclaimer: For informational purposes only. Day trading is high risk."
         
         return analysis
-    
-    def analyze_single_company_formatted(self, company_name):
-        """Wrapper method that returns formatted string instead of dictionary"""
-        return self.format_twitter_analysis(company_name)
-
-def main():
-    analyzer = TwitterFormattedAnalyzer()
-    
-    # Get list of available companies
-    company_names = list(analyzer.companies.keys())
-    
-    print("Available companies:")
-    for i, company in enumerate(company_names, 1):
-        print(f"{i}. {company}")
-    
-    # For demonstration, let's analyze Tesla (index 5, but 0-based so index 5 is Tesla)
-    tesla_index = 5  # Tesla is at index 5 in the companies list
-    
-    if tesla_index < len(company_names):
-        company_name = company_names[tesla_index]
-        print(f"\n--- Analyzing {company_name} ---\n")
-        
-        # Get the formatted analysis
-        formatted_analysis = analyzer.analyze_single_company_formatted(company_name)
-        
-        # Print the result
-        print(formatted_analysis)
-        
-        # Optionally, you can return this string for use in other applications
-        return formatted_analysis
-    else:
-        print("Invalid company index")
-        return None
 
 def get_company_analysis(company_name):
     """
-    Simple function to get Twitter-formatted analysis for any company.
-    Returns a string ready for Twitter posting.
+    Get Twitter-formatted analysis for any company.
     
     Args:
-        company_name (str): Name of the company to analyze (e.g., 'Tesla', 'Apple', etc.)
+        company_name (str): Company name ('Tesla', 'Apple', 'Microsoft', etc.)
     
     Returns:
         str: Formatted analysis string ready for Twitter
     """
     analyzer = TwitterFormattedAnalyzer()
-    return analyzer.analyze_single_company_formatted(company_name)
-
-if __name__ == "__main__":
-    main()
+    return analyzer.format_twitter_analysis(company_name)
