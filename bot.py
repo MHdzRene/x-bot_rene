@@ -23,7 +23,7 @@ else:
     exit(1)
 
 # Create tweet function
-def create_tweet(text, client):
+def create_tweet(text, client=client):
     """Creates a tweet safely with error handling"""
     try:
         client.create_tweet(text=text)
@@ -59,10 +59,10 @@ def search_tweets(query, max_results=10):
         return None
 
 
-# Execute the search
-if __name__ == "__main__":
-    # Create a tweet
-    create_tweet("🤖 Bot working!", client)
+# # Execute the search
+# if __name__ == "__main__":
+#     # # Create a tweet
+#     # create_tweet("🤖 Bot working!", client)
     
-    # Search tweets
-    tweets_found = search_tweets("news lang:en -is:retweet", 10)
+#     # # Search tweets
+#     # tweets_found = search_tweets("news lang:en -is:retweet", 10)
