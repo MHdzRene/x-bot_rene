@@ -4,6 +4,7 @@ Simple example of how to use the Twitter bot with company analysis.
 
 from prueba import get_company_analysis
 import bot
+import company_analyzer as ca
 
 def post_company_analysis(company_name):
     """Get analysis for a company and post it to Twitter"""
@@ -21,8 +22,10 @@ def post_company_analysis(company_name):
     return analysis
 
 if __name__ == "__main__":
-    # Available companies:
     # 'Microsoft', 'Nvidia', 'Apple', 'Amazon', 'Alphabet', 'Tesla'
+
+    company_a=ca.CompanyAnalyzer()
+    #analysis of all companies saved in the class CompanyAnalyzer
+    for i in company_a.companies.keys():
+        post_company_analysis(i)
     
-    # Example: Post Tesla analysis
-    post_company_analysis('Tesla')

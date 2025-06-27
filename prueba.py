@@ -24,76 +24,73 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         current_time = datetime.now().strftime('%B %d, %Y, %H:%M MDT')
         
         # Build the formatted string
-        analysis = f"""🚀 {company_name} Analysis for Day Trading: 24h Opportunity? 📈
+        analysis = f"""🚀 {company_name} Ai driven Analysis for Day Trading: 24h Opportunity? 📈
+        Date and Time: {current_time}
 
-Date and Time: {current_time}
-
-
-🔍 Market Sentiment (Last 24h)
-"""
+    🔍 Market Sentiment (Last 24h)"""
         
         # Add sentiment analysis
         if news_data['news_count'] > 0:
-            analysis += f"\nSentiment towards {company_name} is {news_data['sentiment'].lower()}:\n\n"
+            analysis += f" Sentiment towards {company_name} is {news_data['sentiment'].lower()}:\n\n"
             
             for article in news_data['articles'][:3]:
                 emoji = "📉" if "Negative" in article['sentiment'] else "📈" if "Positive" in article['sentiment'] else "➡️"
-                analysis += f"{emoji} {article['sentiment'].replace('📈 ', '').replace('📉 ', '').replace('➡️ ', '')}: {article['title'][:60]}... ({article['publisher']})\n\n"
+                analysis += f"{emoji} {article['sentiment'].replace('📈 ', '').replace('📉 ', '').replace('➡️ ', '')}: {article['title'][:60]}... ({article['publisher']})\n"
         else:
             analysis += f"\nLimited news data available for {company_name}.\n\n"
         
-        analysis += "Summary: Market conditions suggest exploitable volatility.\n\n\n"
+        analysis += "Summary: Market conditions suggest exploitable volatility.\n\n"
         
         # Technical Analysis Section
-        analysis += "📈 Technical Analysis (Intraday)\n\n"
+        analysis += "📈 Technical Analysis (Intraday)\n"
         
         if technical:
-            analysis += f"Current Price: ${technical['current_price']:.2f}\n\n"
-            analysis += f"Volume: {technical['volume']:,.0f} (vs average)\n\n"
+            analysis += f"Current Price: ${technical['current_price']:.2f}\n"
+            analysis += f"Volume: {technical['volume']:,.0f} (vs average)\n"
             
             # Key levels (calculated from technical data)
             resistance = technical['current_price'] * 1.015  # 1.5% above current
             support_primary = technical['current_price'] * 0.985  # 1.5% below current
             support_secondary = technical['current_price'] * 0.97  # 3% below current
             
-            analysis += "Key Levels:\n\n"
-            analysis += f"🛡️ Resistance: ${resistance:.2f}\n\n"
-            analysis += f"🛡️ Support: ${support_primary:.2f} (primary), ${support_secondary:.2f} (secondary)\n\n"
+            analysis += "\n\nKey Levels:\n"
+            analysis += f"🛡️ Resistance: ${resistance:.2f}\n"
+            analysis += f"🛡️ Support: ${support_primary:.2f} (primary), ${support_secondary:.2f} (secondary)\n"
             
             # Indicators
-            analysis += "Indicators:\n\n"
+            analysis += "\n\nIndicators:\n"
             analysis += f"RSI (15 min): {technical['rsi']:.0f} - {'Overbought' if technical['rsi'] > 70 else 'Oversold' if technical['rsi'] < 30 else 'Neutral'}\n\n"
             
             # Bollinger Bands position
-            analysis += f"Bollinger Bands: {technical['price_vs_bb']}\n\n"
+            analysis += f"Bollinger Bands: {technical['price_vs_bb']}\n"
             
             # Trend analysis
             if technical['current_price'] > technical['ma_20']:
-                analysis += "Pattern: Bullish momentum above 20-day MA\n\n"
+                analysis += "Pattern: Bullish momentum above 20-day MA\n"
             else:
                 analysis += "Pattern: Bearish pressure below 20-day MA\n\n"
             
             # Signals
-            analysis += "Signals:\n\n"
+            analysis += "Signals:\n"
             if technical['current_price'] > technical['ma_50']:
                 analysis += f"🟢 Bullish: Potential rally to ${resistance:.2f} if momentum holds\n\n"
             else:
                 analysis += f"🔴 Bearish: Risk of decline to ${support_secondary:.2f} if support breaks\n\n"
         
         # Real-time data section
-        analysis += "\n📊 Real-time Data\n\n"
+        analysis += "📊 Real-time Data\n"
         if fundamentals:
-            analysis += f"Market Cap: {self.format_large_number(fundamentals.get('market_cap'))}\n\n"
-            analysis += f"P/E Ratio: {fundamentals.get('pe_ratio', 'N/A')}\n\n"
-            analysis += f"Sector: {fundamentals.get('sector', 'N/A')}\n\n"
+            analysis += f"Market Cap: {self.format_large_number(fundamentals.get('market_cap'))}\n"
+            analysis += f"P/E Ratio: {fundamentals.get('pe_ratio', 'N/A')}\n"
+            analysis += f"Sector: {fundamentals.get('sector', 'N/A')}\n"
         
         if technical:
-            analysis += f"52-week High: ${technical['52_week_high']:.2f}\n\n"
-            analysis += f"52-week Low: ${technical['52_week_low']:.2f}\n\n"
+            analysis += f"52-week High: ${technical['52_week_high']:.2f}\n"
+            analysis += f"52-week Low: ${technical['52_week_low']:.2f}\n"
             analysis += f"YTD Return: {technical['ytd_return']:.1f}%\n\n"
         
         # Trading strategies
-        analysis += "\n🛠️ Strategies for Next 24h\n\n"
+        analysis += "🛠️ Strategies for Next 24h\n"
         
         if technical:
             entry_long = technical['current_price'] * 1.008  # 0.8% above current
@@ -104,21 +101,21 @@ Date and Time: {current_time}
             target_short = technical['current_price'] * 0.975 # 2.5% below current
             stop_short = technical['current_price'] * 1.006   # 0.6% above current
             
-            analysis += "Bullish:\n\n"
-            analysis += f"Entry: Buy if breaks ${entry_long:.2f} with volume\n\n"
-            analysis += f"Target: ${target_long:.2f}\n\n"
-            analysis += f"Stop-loss: ${stop_long:.2f}\n\n"
+            analysis += "Bullish:\n"
+            analysis += f"Entry: Buy if breaks ${entry_long:.2f} with volume\n"
+            analysis += f"Target: ${target_long:.2f}\n"
+            analysis += f"Stop-loss: ${stop_long:.2f}\n"
             
-            analysis += "Bearish:\n\n"
-            analysis += f"Entry: Short if drops below ${entry_short:.2f}\n\n"
-            analysis += f"Target: ${target_short:.2f}\n\n"
-            analysis += f"Stop-loss: ${stop_short:.2f}\n\n"
+            analysis += "Bearish:\n"
+            analysis += f"Entry: Short if drops below ${entry_short:.2f}\n"
+            analysis += f"Target: ${target_short:.2f}\n"
+            analysis += f"Stop-loss: ${stop_short:.2f}\n"
         
         analysis += "Monitor: News and volume in real-time.\n\n\n"
         
         # Risks section
-        analysis += "⚠️ Risks\n\n"
-        analysis += f"Volatility: Sharp movements common in {ticker}\n\n"
+        analysis += "⚠️ Risks\n"
+        analysis += f"Volatility: Sharp movements common in ${ticker}\n\n"
         analysis += "News: Company announcements can change direction\n\n"
         
         analysis += "Disclaimer: For informational purposes only. Day trading is high risk."
