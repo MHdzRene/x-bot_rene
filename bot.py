@@ -1,6 +1,7 @@
 import tweepy
 import time
 import get_creds
+import re
 
 
 # Load environment variables
@@ -29,40 +30,46 @@ def create_tweet(text, client=client):
         client.create_tweet(text=text)
         print("✅ Tweet sent successfully")
     except tweepy.errors.TooManyRequests:
-        print("⚠️ Tweet limit reached")
+        print("⚠️ Tweet l~imit reached")
     except tweepy.errors.Forbidden:
         print("❌ You don't have permission to create tweets")
     except Exception as e:
         print(f"❌ Error creating tweet: {e}")
-#search tweets with a query inside of x
-def search_tweets(query, max_results=10):
-    """Searches for tweets with error handling"""
-    try:
-        print(f"🔍 Searching: {query}")
-        tweets = client.search_recent_tweets(query=query, max_results=max_results)
         
-        if tweets and tweets.data:
-            print(f"✅ {len(tweets.data)} tweets found:")
-            for i, tweet in enumerate(tweets.data, 1):
-                text = tweet.text.replace('\n', ' ')[:100]
-                print(f"  {i}. {text}...")
-            return tweets.data
-        else:
-            print("ℹ️ No tweets found")
-            return None
-            
-    except tweepy.errors.TooManyRequests:
-        print("⚠️ API limit reached. Wait 15 minutes")
-        return None
+#search tweets with a query inside of x
+def search_tweets(query, max_r,client=client):
+    # Search recent tweets (last 7 days)
+    try:
+        tweets = client.search_recent_tweets(
+            query=query,
+            tweet_fields=['created_at', 'author_id', 'text'],  # Specify fields to return
+            max_results=max_r # Number of tweets to retrieve (10-100 per request),
+        )
+      
+        # Process the results
+        tweets_results={}
+        aux={}
+        title='no title'
+        for tweet in tweets.data:
+            aux={'title':title, "summary": tweet.text,"provider":tweet.author_id}
+            tweets_results[tweet.id]=aux
+            aux={}
+        return tweets_results
     except Exception as e:
-        print(f"❌ Search error: {e}")
-        return None
+        print(f"Error: {e}")
+   #news will be a dict {title: "lalal", summary: "llalal", provider:"lalal"}
 
 
-# # Execute the search
-# if __name__ == "__main__":
-#     # # Create a tweet
-#     # create_tweet("🤖 Bot working!", client)
-    
-#     # # Search tweets
-#     # tweets_found = search_tweets("news lang:en -is:retweet", 10)
+# Function to clean tweet text
+def clean_tweet(text):
+    text = re.sub(r'http\S+', '', text)  # Remove URLs
+    text = re.sub(r'@\w+', '', text)    # Remove mentions
+    text = re.sub(r'#\w+', '', text)    # Remove hashtags
+    text = text.strip().lower()         # Convert to lowercase
+    return text
+
+def main():
+    query_tesla = 'Tesla OR TSLA OR "Model 3" OR "Model Y" OR Cybertruck -is:retweet  -from:teslapromo -discount -sale lang:en ' 
+    example=search_tweets(query_tesla,50,client)
+    print(len(example))
+main()

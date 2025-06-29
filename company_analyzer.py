@@ -4,18 +4,12 @@ import numpy as np
 from datetime import datetime, timedelta
 import re
 import bot
+import working_wjson as wj
 
 class CompanyAnalyzer:
     def __init__(self):
         # Top 5 tech companies with their ticker symbols
-        self.companies = {
-            'Microsoft': 'MSFT',
-            'Nvidia': 'NVDA', 
-            'Apple': 'AAPL',
-            'Amazon': 'AMZN',
-            'Alphabet': 'GOOGL',
-            'Tesla': 'TSLA',
-        }
+        self.companies = wj.load_from_json('data/companies.json')
     
     def get_company_fundamentals(self, ticker):
         """Get fundamental data for a company"""
@@ -115,72 +109,63 @@ class CompanyAnalyzer:
         else:
             return "Within Bands (Normal)"
     
-    def get_news_sentiment(self, ticker, company_name):
+
+    def get_news_sentiment(self,news):
         """Get news sentiment for a company"""
-        try:
-            stock = yf.Ticker(ticker)
-            news = stock.news
+        if news == None:
+            return {'sentiment': 'No news available', 'news_count': 0, 'articles': []}
             
-            if not news:
-                return {'sentiment': 'No news available', 'news_count': 0, 'articles': []}
-            
-            # Keywords for sentiment analysis
-            positive_keywords = ['beat', 'surge', 'gains', 'up', 'bull', 'optimistic', 'positive', 'growth', 'rise', 'boost', 'strong', 'record', 'profit', 'revenue', 'upgrade']
-            negative_keywords = ['miss', 'fall', 'drop', 'down', 'bear', 'decline', 'concern', 'worry', 'risk', 'volatile', 'weak', 'loss', 'downgrade', 'cut', 'lower']
-            
-            analyzed_articles = []
-            total_positive = 0
-            total_negative = 0
-            
-            for article in news[:5]:  # Analyze top 5 news articles
-                try:
-                    content = article.get('content', {})
-                    if not content:
-                        continue
+        # Keywords for sentiment analysis
+            # Expanded positive keywords list
+       
+        positive_keywords =wj.load_from_json('data/positive_keywords.json')
+        negative_keywords =wj.load_from_json('data/negative_keywords.json')
+         
+        analyzed_articles = []
+        total_positive = 0
+        total_negative = 0
+        #news will be a dict {title: "lalal", summary: "llalal", provider:"lalal"}
+        for article in news.keys():  # Analyze top 5 news articles
+                title = news[article]['title']
+                text_to_analyze = (title + ' ' + news[article]['summary'])
                     
-                    title = content.get('title', 'No title')
-                    text_to_analyze = (title + ' ' + content.get('summary', '')).lower()
+                positive_score = sum(1 for word in positive_keywords if word in text_to_analyze)
+                negative_score = sum(1 for word in negative_keywords if word in text_to_analyze)
                     
-                    positive_score = sum(1 for word in positive_keywords if word in text_to_analyze)
-                    negative_score = sum(1 for word in negative_keywords if word in text_to_analyze)
+                if positive_score > negative_score:
+                    sentiment = "📈 Positive"
+                    total_positive += 1
+                elif negative_score > positive_score:
+                    sentiment = "📉 Negative"
+                    total_negative += 1
+                else:
+                    sentiment = "➡️ Neutral"
                     
-                    if positive_score > negative_score:
-                        sentiment = "📈 Positive"
-                        total_positive += 1
-                    elif negative_score > positive_score:
-                        sentiment = "📉 Negative"
-                        total_negative += 1
-                    else:
-                        sentiment = "➡️ Neutral"
-                    
-                    analyzed_articles.append({
+                analyzed_articles.append({
                         'title': title,
                         'sentiment': sentiment,
-                        'publisher': content.get('provider', {}).get('displayName', 'Unknown')
+                        'publisher': news[article]["provider"]
                     })
                     
-                except Exception:
-                    continue
+            
             
             # Overall sentiment
-            if total_positive > total_negative:
-                overall_sentiment = "📈 Overall Positive"
-            elif total_negative > total_positive:
-                overall_sentiment = "📉 Overall Negative"
-            else:
-                overall_sentiment = "➡️ Overall Neutral"
+        if total_positive > total_negative:
+            overall_sentiment = "📈 Overall Positive"
+        elif total_negative > total_positive:
+            overall_sentiment = "📉 Overall Negative"
+        else:
+            overall_sentiment = "➡️ Overall Neutral"
             
-            return {
-                'sentiment': overall_sentiment,
-                'news_count': len(analyzed_articles),
-                'positive_count': total_positive,
-                'negative_count': total_negative,
-                'articles': analyzed_articles
-            }
-            
-        except Exception as e:
-            print(f"Error getting news for {ticker}: {e}")
-            return {'sentiment': 'Error getting news', 'news_count': 0, 'articles': []}
+        return {
+            'sentiment': overall_sentiment,
+            'news_count': len(analyzed_articles),
+            'positive_count': total_positive,
+            'positive_porcent': total_positive*100/len(analyzed_articles),
+            'negative_count': total_negative,
+            'negative_porcent': total_negative*100/len(analyzed_articles),
+            'articles': analyzed_articles
+        }
     
     def format_large_number(self, num):
         """Format large numbers (market cap, etc.)"""
@@ -241,21 +226,11 @@ class CompanyAnalyzer:
         
         return assessments if assessments else ["📊 Insufficient data for valuation assessment"]
     
-    def analyze_single_company(self, company_name):
+    def analyze_single_company(self,news, company_name):
         large_tweet=dict()
         """Analyze a single company comprehensively"""
         ticker = self.companies.get(company_name)
-        #if not ticker:
-        #     print(f"Company {company_name} not found in database")
-        #     return
-        
-        # print("=" * 80)
-        # print(f"📊 COMPREHENSIVE ANALYSIS: {company_name.upper()} ({ticker})")
-        # print("=" * 80)
-        
-        # # 1. Fundamental Analysis
-        # print(f"\n💼 FUNDAMENTAL ANALYSIS")
-        # print("-" * 40)
+    
         fundamentals = self.get_company_fundamentals(ticker)
         
         if fundamentals:
@@ -265,97 +240,154 @@ class CompanyAnalyzer:
             large_tweet["Dividend Yield: "]=str(self.format_percentage(fundamentals.get('dividend_yield')))
             large_tweet["Sector: "]=str(fundamentals.get('sector', 'N/A'))
 
-
-         
-            
-            # print(f"P/E Ratio: {fundamentals.get('pe_ratio', 'N/A')}")
-            # print(f"Dividend Yield: {self.format_percentage(fundamentals.get('dividend_yield'))}")
-            # print(f"Sector: {fundamentals.get('sector', 'N/A')}")
-            #print(f"Forward P/E: {fundamentals.get('forward_pe', 'N/A')}")
-            #print(f"Price-to-Book: {fundamentals.get('price_to_book', 'N/A')}")
-            #print(f"Debt-to-Equity: {fundamentals.get('debt_to_equity', 'N/A')}")
-            # print(f"Return on Equity: {self.format_percentage(fundamentals.get('return_on_equity'))}")
-            # print(f"Profit Margin: {self.format_percentage(fundamentals.get('profit_margin'))}")
-            # print(f"Revenue Growth: {self.format_percentage(fundamentals.get('revenue_growth'))}")
-            #print(f"Beta: {fundamentals.get('beta', 'N/A')}")
-            #print(f"Employees: {fundamentals.get('employees', 'N/A'):,}" if fundamentals.get('employees') != 'N/A' else "Employees: N/A")
-            
-            
-        
-        # 2. Technical Analysis
-      #  print(f"\n📈 TECHNICAL ANALYSIS")
-       # print("-" * 40)
         technical = self.get_technical_analysis(ticker)
         
         if technical:
-            #print(f"Current Price: ${technical['current_price']:.2f}")
             large_tweet["Current Price: "]=str(technical['current_price'])
-           # print(f"20-day MA: ${technical['ma_20']:.2f}")
-           # print(f"50-day MA: ${technical['ma_50']:.2f}")
-            #print(f"200-day MA: ${technical['ma_200']:.2f}")
-            #print(f"RSI: {technical['rsi']:.2f}")
-            #print(f"Bollinger Bands: {technical['price_vs_bb']}")
-            #print(f"52-week High: ${technical['52_week_high']:.2f}")
-            #print(f"52-week Low: ${technical['52_week_low']:.2f}")
-            #print(f"Distance from High: {technical['distance_from_high']:.1f}%")
-            #print(f"Distance from Low: {technical['distance_from_low']:.1f}%")
-            
-            # print(f"\n📊 PERFORMANCE:")
-            # print(f"YTD Return: {technical['ytd_return']:.1f}%")
-            # print(f"1-Month Return: {technical['month_return']:.1f}%")
-            # print(f"1-Year Return: {technical['year_return']:.1f}%")
-            
-            # print(f"\n🔍 TECHNICAL SIGNALS:")
-            # if technical['current_price'] > technical['ma_200']:
-            #     print("• Long-term trend: 🟢 BULLISH (above 200-day MA)")
-            # else:
-            #     print("• Long-term trend: 🔴 BEARISH (below 200-day MA)")
-            
-            # if technical['rsi'] > 70:
-            #     print("• RSI: 🔴 OVERBOUGHT (>70)")
-            # elif technical['rsi'] < 30:
-            #     print("• RSI: 🟢 OVERSOLD (<30)")
-            # else:
-            #     print("• RSI: 🟡 NEUTRAL (30-70)")
-        
-        # 3. News Sentiment
-       # print(f"\n📰 NEWS SENTIMENT ANALYSIS")
-       # print("-" * 40)
-        news_data = self.get_news_sentiment(ticker, company_name)
-        #print(f"Overall Sentiment: {news_data['sentiment']}")
+         
+    
+        news_data = self.get_news_sentiment(news,ticker, company_name)
         large_tweet["Overall Sentiment: "]=str(news_data['sentiment'])
-
-       # print(f"Recent Articles Analyzed: {news_data['news_count']}")
         large_tweet["Recent Articles Analyzed: "]=str(news_data['news_count'])
 
         if news_data['news_count'] > 0:
-            # print(f"Positive: {news_data['positive_count']} | Negative: {news_data['negative_count']}")
             news=[]
-            #print(f"\nRecent Headlines:")
             for article in news_data['articles'][:3]:
-                #print(f"{article['sentiment']} {article['title'][:80]}...")
-                #print(f"   Source: {article['publisher']}")
                 news.append(f"{article['sentiment']} {article['title'][:80]}...Source: {article['publisher']}")
            # print(news)
         large_tweet['news']=news
-        
-        # # 4. Valuation Assessment
-        # print(f"\n💰 VALUATION ASSESSMENT")
-        # print("-" * 40)
-        # if fundamentals:
-        #     assessments = self.get_valuation_assessment(fundamentals)
-        #     for assessment in assessments:
-        #         print(f"• {assessment}")
-        
-        # 5. Business Overview
-        # if fundamentals and fundamentals.get('business_summary'):
-        #     print(f"\n🏢 BUSINESS OVERVIEW")
-        #     print("-" * 40)
-        #     summary = fundamentals['business_summary'][:400] + "..." if len(fundamentals['business_summary']) > 400 else fundamentals['business_summary']
-        #     print(summary)
-        
-        # print(f"\n⚠️ DISCLAIMER: This analysis is for informational purposes only and should not be considered investment advice.")
-        # print("=" * 80)
+      
         return large_tweet
     
+class TwitterFormattedAnalyzer(CompanyAnalyzer):
+    def __init__(self):
+        super().__init__()
+    
+    def format_twitter_analysis(self, company_name):
+        """Generate a Twitter-formatted analysis string for a company"""
+        ticker = self.companies.get(company_name)
+        if not ticker:
+            return f"Company {company_name} not found in database"
+        
+        # Get all the data
+        fundamentals = self.get_company_fundamentals(ticker)
+        technical = self.get_technical_analysis(ticker)
+        news=self.yf_news(ticker)
+        news_data = self.get_news_sentiment(news)
+        
+        # Current date and time
+        current_time = datetime.now().strftime('%B %d, %Y, %H:%M MDT')
+        
+        # Build the formatted string
+        analysis = f"""🚀 {company_name} Ai driven Analysis for Day Trading: 24h Opportunity? 📈
+        Date and Time: {current_time}
+
+    🔍 Market Sentiment (Last 24h)"""
+        
+        # Add sentiment analysis
+        if news_data['news_count'] > 0:
+            analysis += f" Sentiment towards {company_name} is {news_data['sentiment'].lower()}:\n\n"
+            
+            for article in news_data['articles'][:3]:
+                emoji = "📉" if "Negative" in article['sentiment'] else "📈" if "Positive" in article['sentiment'] else "➡️"
+                analysis += f"{emoji} {article['sentiment'].replace('📈 ', '').replace('📉 ', '').replace('➡️ ', '')}: {article['title'][:60]}... ({article['publisher']})\n"
+        else:
+            analysis += f"\nLimited news data available for {company_name}.\n\n"
+        
+        analysis += "Summary: Market conditions suggest exploitable volatility.\n\n"
+        
+        # Technical Analysis Section
+        analysis += "📈 Technical Analysis (Intraday)\n"
+        
+        if technical:
+            analysis += f"Current Price: ${technical['current_price']:.2f}\n"
+            analysis += f"Volume: {technical['volume']:,.0f} (vs average)\n"
+            
+            # Key levels (calculated from technical data)
+            resistance = technical['current_price'] * 1.015  # 1.5% above current
+            support_primary = technical['current_price'] * 0.985  # 1.5% below current
+            support_secondary = technical['current_price'] * 0.97  # 3% below current
+            
+            analysis += "\n\nKey Levels:\n"
+            analysis += f"🛡️ Resistance: ${resistance:.2f}\n"
+            analysis += f"🛡️ Support: ${support_primary:.2f} (primary), ${support_secondary:.2f} (secondary)\n"
+            
+            # Indicators
+            analysis += "\n\nIndicators:\n"
+            analysis += f"RSI (15 min): {technical['rsi']:.0f} - {'Overbought' if technical['rsi'] > 70 else 'Oversold' if technical['rsi'] < 30 else 'Neutral'}\n\n"
+            
+            # Bollinger Bands position
+            analysis += f"Bollinger Bands: {technical['price_vs_bb']}\n"
+            
+            # Trend analysis
+            if technical['current_price'] > technical['ma_20']:
+                analysis += "Pattern: Bullish momentum above 20-day MA\n"
+            else:
+                analysis += "Pattern: Bearish pressure below 20-day MA\n\n"
+            
+            # Signals
+            analysis += "Signals:\n"
+            if technical['current_price'] > technical['ma_50']:
+                analysis += f"🟢 Bullish: Potential rally to ${resistance:.2f} if momentum holds\n\n"
+            else:
+                analysis += f"🔴 Bearish: Risk of decline to ${support_secondary:.2f} if support breaks\n\n"
+        
+        # Real-time data section
+        analysis += "📊 Real-time Data\n"
+        if fundamentals:
+            analysis += f"Market Cap: {self.format_large_number(fundamentals.get('market_cap'))}\n"
+            analysis += f"P/E Ratio: {fundamentals.get('pe_ratio', 'N/A')}\n"
+            analysis += f"Sector: {fundamentals.get('sector', 'N/A')}\n"
+        
+        if technical:
+            analysis += f"52-week High: ${technical['52_week_high']:.2f}\n"
+            analysis += f"52-week Low: ${technical['52_week_low']:.2f}\n"
+            analysis += f"YTD Return: {technical['ytd_return']:.1f}%\n\n"
+        
+        # Trading strategies
+        analysis += "🛠️ Strategies for Next 24h\n"
+        
+        if technical:
+            entry_long = technical['current_price'] * 1.008  # 0.8% above current
+            target_long = technical['current_price'] * 1.02  # 2% above current
+            stop_long = technical['current_price'] * 0.985   # 1.5% below current
+            
+            entry_short = technical['current_price'] * 0.992  # 0.8% below current
+            target_short = technical['current_price'] * 0.975 # 2.5% below current
+            stop_short = technical['current_price'] * 1.006   # 0.6% above current
+            
+            analysis += "Bullish:\n"
+            analysis += f"Entry: Buy if breaks ${entry_long:.2f} with volume\n"
+            analysis += f"Target: ${target_long:.2f}\n"
+            analysis += f"Stop-loss: ${stop_long:.2f}\n"
+            
+            analysis += "Bearish:\n"
+            analysis += f"Entry: Short if drops below ${entry_short:.2f}\n"
+            analysis += f"Target: ${target_short:.2f}\n"
+            analysis += f"Stop-loss: ${stop_short:.2f}\n"
+        
+        analysis += "Monitor: News and volume in real-time.\n\n\n"
+        
+        # Risks section
+        analysis += "⚠️ Risks\n"
+        analysis += f"Volatility: Sharp movements common in ${ticker}\n\n"
+        analysis += "News: Company announcements can change direction\n\n"
+        
+        analysis += "Disclaimer: For informational purposes only. Day trading is high risk."
+        
+        return analysis
+    
+def get_company_analysis(company_name):
+    """
+    Get Twitter-formatted analysis for any company.
+    
+    Args:
+        company_name (str): Company name ('Tesla', 'Apple', 'Microsoft', etc.)
+    
+    Returns:
+        str: Formatted analysis string ready for Twitter
+    """
+    analyzer = TwitterFormattedAnalyzer()
+    return analyzer.format_twitter_analysis(company_name)
+
 
