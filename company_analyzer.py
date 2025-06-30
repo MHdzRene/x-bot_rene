@@ -5,11 +5,19 @@ from datetime import datetime, timedelta
 import re
 import bot
 import working_wjson as wj
+import news
 
 class CompanyAnalyzer:
     def __init__(self):
         # Top 5 tech companies with their ticker symbols
-        self.companies = wj.load_from_json('data/companies.json')
+        self.companies = {
+            'Microsoft': 'MSFT',
+            'Nvidia': 'NVDA', 
+            'Apple': 'AAPL',
+            'Amazon': 'AMZN',
+            'Alphabet': 'GOOGL',
+            'Tesla': 'TSLA',
+        }
     
     def get_company_fundamentals(self, ticker):
         """Get fundamental data for a company"""
@@ -109,7 +117,6 @@ class CompanyAnalyzer:
         else:
             return "Within Bands (Normal)"
     
-
     def get_news_sentiment(self,news):
         """Get news sentiment for a company"""
         if news == None:
@@ -146,8 +153,7 @@ class CompanyAnalyzer:
                         'sentiment': sentiment,
                         'publisher': news[article]["provider"]
                     })
-                    
-            
+                      
             
             # Overall sentiment
         if total_positive > total_negative:
@@ -226,11 +232,10 @@ class CompanyAnalyzer:
         
         return assessments if assessments else ["📊 Insufficient data for valuation assessment"]
     
-    def analyze_single_company(self,news, company_name):
+    def analyze_single_company(self, company_name):
         large_tweet=dict()
         """Analyze a single company comprehensively"""
         ticker = self.companies.get(company_name)
-    
         fundamentals = self.get_company_fundamentals(ticker)
         
         if fundamentals:
@@ -244,24 +249,175 @@ class CompanyAnalyzer:
         
         if technical:
             large_tweet["Current Price: "]=str(technical['current_price'])
-         
-    
-        news_data = self.get_news_sentiment(news,ticker, company_name)
+ 
+        news_data = self.get_news_sentiment(ticker, company_name)
         large_tweet["Overall Sentiment: "]=str(news_data['sentiment'])
+
+       # print(f"Recent Articles Analyzed: {news_data['news_count']}")
         large_tweet["Recent Articles Analyzed: "]=str(news_data['news_count'])
 
         if news_data['news_count'] > 0:
+            # print(f"Positive: {news_data['positive_count']} | Negative: {news_data['negative_count']}")
             news=[]
+            #print(f"\nRecent Headlines:")
             for article in news_data['articles'][:3]:
+                #print(f"{article['sentiment']} {article['title'][:80]}...")
+                #print(f"   Source: {article['publisher']}")
                 news.append(f"{article['sentiment']} {article['title'][:80]}...Source: {article['publisher']}")
            # print(news)
         large_tweet['news']=news
-      
         return large_tweet
     
+    def analyze_all_companies(self):
+        """Analyze all 5 companies"""
+        print("🚀 BIG TECH STOCK ANALYSIS - TOP 5 COMPANIES")
+        print("=" * 80)
+        print(f"Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("=" * 80)
+        
+        for company_name in self.companies.keys():
+            self.analyze_single_company(company_name)
+            print("\n" * 2)
+        
+        # Summary comparison
+        self.create_comparison_summary()
+    
+    def create_comparison_summary(self):
+        """Create a quick comparison summary of all companies"""
+        print("=" * 80)
+        print("📊 QUICK COMPARISON SUMMARY")
+        print("=" * 80)
+        
+        summary_data = []
+        
+        for company_name, ticker in self.companies.items():
+            fundamentals = self.get_company_fundamentals(ticker)
+            technical = self.get_technical_analysis(ticker)
+            
+            if fundamentals and technical:
+                summary_data.append({
+                    'company': company_name,
+                    'ticker': ticker,
+                    'market_cap': fundamentals.get('market_cap', 0),
+                    'pe_ratio': fundamentals.get('pe_ratio', 'N/A'),
+                    'current_price': technical['current_price'],
+                    'ytd_return': technical['ytd_return'],
+                    'year_return': technical['year_return']
+                })
+        
+        # Sort by market cap
+        summary_data.sort(key=lambda x: x['market_cap'] if x['market_cap'] != 'N/A' and x['market_cap'] is not None else 0, reverse=True)
+        
+        print(f"{'Company':<12} {'Ticker':<6} {'Market Cap':<12} {'P/E':<8} {'Price':<10} {'YTD%':<8} {'1Y%':<8}")
+        print("-" * 70)
+        
+        for data in summary_data:
+            market_cap_str = self.format_large_number(data['market_cap'])
+            pe_str = f"{data['pe_ratio']:.1f}" if data['pe_ratio'] != 'N/A' and data['pe_ratio'] is not None else 'N/A'
+            
+            print(f"{data['company']:<12} {data['ticker']:<6} {market_cap_str:<12} {pe_str:<8} ${data['current_price']:<9.2f} {data['ytd_return']:<7.1f}% {data['year_return']:<7.1f}%")
+        
+        print("\n⚠️ IMPORTANT: This analysis is for educational purposes only. Always consult with financial professionals before making investment decisions.")
+
+    def get_single_company_sentiment_metrics(self,company):
+        """
+            Aggregates sentiment analysis data from three major sources for a single company.
+            
+            This function orchestrates the complete sentiment analysis pipeline:
+            1. Fetches data from X (Twitter), Yahoo Finance, and Google News
+            2. Applies sentiment analysis to each data source
+            3. Normalizes sentiment percentages to ratios (0.0-1.0)
+                4. Extracts sample sizes for statistical weighting
+                5. Returns standardized metrics for cross-platform comparison
+                
+                Args:
+                    topic_g (str): Company name or topic for Google News search
+                                Example: "Tesla", "Apple Inc", "Microsoft Corporation"
+                    ticker_y (str): Stock ticker symbol for Yahoo Finance news
+                                Example: "TSLA", "AAPL", "MSFT"
+                    query_x (str): Custom search query for X (Twitter) platform
+                                Example: "Tesla OR TSLA OR 'Model 3' -is:retweet lang:en"
+            
+                Note:
+                    - Neutral sentiment is calculated as: 1.0 - (positive_ratio + negative_ratio)
+                    - Sample sizes are crucial for statistical significance in sentiment weighting
+                    - If any source fails, that source will return 0 values for all metrics
+            
+                    # Result: {'P_X': 0.65, 'N_X': 0.20, 'P_Y': 0.45, ...}
+        """
+        
+        # Step 1: Data Collection Phase
+        # Fetch tweets from X using custom query
+        x_news = wj.load_from_json('data/x_tweets.json')
+        x_news=x_news[company]
+        
+        # Fetch financial news from Yahoo Finance using ticker
+        y_news = wj.load_from_json('data/yf_news.json')
+        y_news=y_news[company]
+
+        # Fetch general news from Google News using company topic
+        g_news =wj.load_from_json('data/google_news.json')
+        g_news=g_news[company]
+
+        # Step 2: Sentiment Analysis Phase
+        # Apply sentiment analysis to each data source
+        x_sentiment = self.get_news_sentiment(x_news)
+        y_sentiment = self.get_news_sentiment(y_news)
+        g_sentiment = self.get_news_sentiment(g_news)
+        
+        # Step 3: Data Normalization Phase
+        # Convert percentages to ratios (0-100% → 0.0-1.0) for consistent scaling
+        positive_x_ratio = x_sentiment['positive_porcent'] / 100
+        negative_x_ratio = x_sentiment['negative_porcent'] / 100
+        positive_y_ratio = y_sentiment['positive_porcent'] / 100
+        negative_y_ratio = y_sentiment['negative_porcent'] / 100
+        positive_g_ratio = g_sentiment['positive_porcent'] / 100
+        negative_g_ratio = g_sentiment['negative_porcent'] / 100
+        
+        # Extract sample sizes for statistical weighting
+        sample_size_x = x_sentiment['news_count']
+        sample_size_y = y_sentiment['news_count']
+        sample_size_g = g_sentiment['news_count']
+
+        # Step 4: Return Standardized Metrics
+        return {
+            'P_X': positive_x_ratio,     # X positive sentiment ratio (0.0-1.0)
+            'N_X': negative_x_ratio,     # X negative sentiment ratio (0.0-1.0)
+            'P_Y': positive_y_ratio,     # Yahoo Finance positive sentiment ratio
+            'N_Y': negative_y_ratio,     # Yahoo Finance negative sentiment ratio
+            'P_G': positive_g_ratio,     # Google News positive sentiment ratio
+            'N_G': negative_g_ratio,     # Google News negative sentiment ratio
+            'sample_X': sample_size_x,   # Number of X posts analyzed
+            'sample_Y': sample_size_y,   # Number of Yahoo Finance articles analyzed
+            'sample_G': sample_size_g    # Number of Google News articles analyzed
+        }
+      
+    def get_multi_source_sentiment_analysis(self, queries_path='data/queries_x.json'):
+        """
+        Performs comprehensive sentiment analysis for multiple companies using three data sources:
+        X (Twitter), Yahoo Finance, and Google News.
+        
+        """
+        # Load platform-specific search queries for each company
+        queries = wj.load_from_json(queries_path)
+        
+        
+        # Initialize container for all companies' sentiment data
+        total_data = {}
+
+        # Process each company individually
+        for company in self.companies.keys():
+            # Extract sentiment data from all three sources for this company
+            total_data[company] = self.get_single_company_sentiment_metrics(
+                company,                    # Company name ~
+            )
+        wj.save_to_json(total_data,'data/data_total_analyze.json')
+        return total_data
+
 class TwitterFormattedAnalyzer(CompanyAnalyzer):
     def __init__(self):
         super().__init__()
+        self.news_extractor= news.NewsExtractor()
     
     def format_twitter_analysis(self, company_name):
         """Generate a Twitter-formatted analysis string for a company"""
@@ -272,12 +428,24 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         # Get all the data
         fundamentals = self.get_company_fundamentals(ticker)
         technical = self.get_technical_analysis(ticker)
-        news=self.yf_news(ticker)
+
+        news=wj.load_from_json('data/yf_news.json')
+        news=news[company_name]
+
         news_data = self.get_news_sentiment(news)
+       
         
         # Current date and time
         current_time = datetime.now().strftime('%B %d, %Y, %H:%M MDT')
         
+        #combine prob
+        combine_prob=wj.load_from_json('data/Combined_Prob.json') 
+        combine_prob_positive=combine_prob[company_name]["Combined_Prob_positive"]* 100
+        combine_prob_positive=round(combine_prob_positive,3)
+        combine_prob_negative=combine_prob[company_name]["Combined_Prob_negative"]* 100
+        combine_prob_negative=round(combine_prob_negative)
+     
+
         # Build the formatted string
         analysis = f"""🚀 {company_name} Ai driven Analysis for Day Trading: 24h Opportunity? 📈
         Date and Time: {current_time}
@@ -286,9 +454,13 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         
         # Add sentiment analysis
         if news_data['news_count'] > 0:
-            analysis += f" Sentiment towards {company_name} is {news_data['sentiment'].lower()}:\n\n"
+            analysis += f" Sentiment towards {company_name} is {news_data['sentiment'].lower()}\n\n"
+            analysis += f"📊 Sentiment statistics: \n"
+            analysis += f"-Positive: {combine_prob_positive}% \n"
+            analysis += f"-Negative: {combine_prob_negative}% \n\n"
             
-            for article in news_data['articles'][:3]:
+            analysis += f"🗞 News Sample: \n"
+            for article in news_data['articles'][:2]:
                 emoji = "📉" if "Negative" in article['sentiment'] else "📈" if "Positive" in article['sentiment'] else "➡️"
                 analysis += f"{emoji} {article['sentiment'].replace('📈 ', '').replace('📉 ', '').replace('➡️ ', '')}: {article['title'][:60]}... ({article['publisher']})\n"
         else:
@@ -297,7 +469,7 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         analysis += "Summary: Market conditions suggest exploitable volatility.\n\n"
         
         # Technical Analysis Section
-        analysis += "📈 Technical Analysis (Intraday)\n"
+        analysis += "✅ Technical Analysis (Intraday)\n"
         
         if technical:
             analysis += f"Current Price: ${technical['current_price']:.2f}\n"
@@ -377,6 +549,8 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         
         return analysis
     
+
+#idk where put this method
 def get_company_analysis(company_name):
     """
     Get Twitter-formatted analysis for any company.
@@ -389,5 +563,20 @@ def get_company_analysis(company_name):
     """
     analyzer = TwitterFormattedAnalyzer()
     return analyzer.format_twitter_analysis(company_name)
+
+def post_company_analysis(company_name):
+    """Get analysis for a company and post it to Twitter"""
+    
+    print(f"📊 Getting analysis for {company_name}...")
+    
+    # Get the formatted analysis
+    analysis = get_company_analysis(company_name) 
+    
+    # Post to Twitter
+    print("📤 Posting to Twitter...")
+    bot.create_tweet(analysis)
+    
+    print("✅ Done!")
+    return analysis
 
 

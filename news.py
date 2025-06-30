@@ -3,9 +3,9 @@ from pygooglenews import GoogleNews
 from datetime import datetime
 import re
 from html import unescape
-import company_analyzer as ca
 import yfinance as yf
 import twitter_client as tc
+import working_wjson as wj
 
 
 class NewsExtractor:
@@ -14,7 +14,10 @@ class NewsExtractor:
         self.gn = GoogleNews(lang=lang, country=country)
         #initialize x client
         self.tc= tc.TwitterClient()
-    
+        #initialize copany_analyzer
+        self.companies = wj.load_from_json('data/companies.json')
+        self.queries= wj.load_from_json('data/queries_x.json')
+        
     
     def clean_text(self, text):
         """Clean HTML tags and noise from text"""
@@ -40,7 +43,7 @@ class NewsExtractor:
         
         return text
     
-    def search_news_google(self, topic, max_results=10):
+    def search_news_google(self, topic, max_results=60):
         """Search news for a specific topic"""
         try:
             # Search for news
@@ -54,6 +57,7 @@ class NewsExtractor:
                 # Clean title and summary
                 raw_title = entry.get('title', 'No title')
                 raw_summary = entry.get('summary', 'No summary')
+                raw_summary=self.clean_text(raw_summary)
                 
                 article = {
                     'title': self.clean_text(raw_title),
@@ -103,51 +107,34 @@ class NewsExtractor:
             return None 
         
     def x_tweets(self,query):
-        tweets=self.tc.search_tweets(query,max_results=50)
+        tweets=self.tc.search_tweets(query,max_results=30)
         return tweets
-class newsSentiment:
-    def __init__(self):
-        #initialize news extractor
-        self.news_extractor=NewsExtractor()
-        #initialize Company analizer
-        self.company_analyzer=ca.CompanyAnalyzer()
-    '''
-    conform actual data and save ir in a json
-    data = {
-    'microsoft': {
-        'P_X': 0.60,  # Example: 60% of tweets are Positive
-        'P_Y': 0.70,  # Example: 70% of Yahoo Finance articles are positive
-        'P_G': 0.65,  # Example: 65% of Google News articles are positive
-        'sample_X': 1000,  # Number of tweets
-        'sample_Y': 50,    # Number of Yahoo Finance articles
-        'sample_G': 20     # Number of Google News articles
-    },
-    '''
-
     
+    def save_news(self):
+        yf_all_company={}
+        x_all_company={}
+        g_search_all_company={}
+        for i in self.companies.keys():
+            yf=self.yf_news(self.companies[i])
+            g_search=self.search_news_google(i)
+            x=self.x_tweets(self.queries[i])
+            yf_all_company[i]=yf
+            x_all_company[i]=x
+            g_search_all_company[i]=g_search
+        print(yf_all_company)
+        wj.save_to_json(yf_all_company,'data/yf_news.json')
+        wj.save_to_json(x_all_company,'data/x_tweets.json')
+        wj.save_to_json(g_search_all_company,'data/google_news.json')
 
+    # def united_news(self):
+    #     g_news = wj.load_from_json('data/google_news.json')
+    #     y_news=wj.load_from_json('data/yf_news.json')
+    #     all_news={}
+    #     for company in self.companies.keys():
+    #         aux=g_news[company]
+    #         aux
 
+            
 
-
-
-# Usage examples
-def main():
-    # Initialize news extractor
-    news_extractor = NewsExtractor()
-    company_a=ca.CompanyAnalyzer()
-
-    # Example 1: Search Tesla news
-    tesla_news = news_extractor.search_news_google("Tesla", max_results=15)
-    # for i in tesla_news.keys():
-    #     print(tesla_news[i]['summary'])
-    sentiments=company_a.get_news_sentiment(tesla_news)
-    
-
-    print('sentiment ',sentiments['sentiment'])
-    print('news_count',sentiments['news_count'])
-    print(f'positive_porcent {sentiments['positive_porcent']}')
-    print(f' negative_porcent: {sentiments[ 'negative_porcent']}')
    
 
-if __name__ == "__main__":
-    main()
