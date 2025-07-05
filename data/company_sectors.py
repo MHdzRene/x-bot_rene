@@ -1,0 +1,1 @@
+{"Microsoft": "technology", "Nvidia": "semiconductors", "Apple": "consumer_electronics", "Amazon": "ecommerce_cloud", "Alphabet": "internet_services", "Tesla": "electric_vehicles"}

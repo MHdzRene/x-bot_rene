@@ -1,0 +1,76 @@
+  {
+    "Microsoft":  [
+          "Microsoft AND politics AND technology regulation AND news",
+          "Microsoft AND government AND software AND news",
+          "Microsoft AND cloud computing AND legislation AND news",
+          "Microsoft AND data privacy AND regulation AND news",
+          "Microsoft AND antitrust AND investigation AND news",
+          "Microsoft AND election AND impact AND news",
+          "Microsoft AND EU AND regulation AND news",
+          "Microsoft AND government contracts AND cloud computing AND news",
+          "Microsoft AND political donations AND news"
+        ],
+    "Alphabet":  [
+          "Google AND politics AND internet services AND news",
+          "Alphabet AND government AND advertising AND news",
+          "Google AND antitrust AND regulation AND news",
+          "Google AND censorship AND politics AND news",
+          "Google AND trade war AND China AND news",
+          "Google AND US Congress AND antitrust AND news",
+          "Google AND search engine AND political bias AND news",
+          "Google AND lobbying AND government relations AND news",
+          "Google AND FTC AND investigation AND news",
+          "Google AND political advertising AND regulation AND news"
+        ],
+    "Apple":[
+          "Apple AND politics AND consumer electronics AND news",
+          "Apple AND government AND software AND news",
+          "Apple AND trade policy AND technology AND news",
+          "Apple AND tariffs AND manufacturing AND news",
+          "Apple AND labor laws AND supply chain AND news",
+          "Apple AND China AND trade policy AND news",
+          "Apple AND Tim Cook AND lobbying AND news",
+          "Apple AND EU AND taxation AND news",
+          "Apple AND political donations AND news",
+          "Apple AND election AND impact AND news"
+        ],
+    "Tesla":[
+          "Tesla AND politics AND automotive AND news",
+          "Tesla AND government AND energy AND news",
+          "Tesla AND electric vehicles AND subsidies AND news",
+          "Tesla AND climate policy AND regulations AND news",
+          "Tesla AND autonomous vehicles AND regulation AND news",
+          "Tesla AND California AND emissions standards AND news",
+          "Tesla AND Elon Musk AND political statements AND news",
+          "Tesla AND renewable energy AND policy AND news",
+          "Tesla AND trade policy AND battery production AND news",
+          "Tesla AND government contracts AND energy AND news"
+        ],
+    "Amazon":[
+          "Amazon AND politics AND e-commerce AND news",
+          "Amazon AND government AND cloud computing AND news",
+          "Amazon AND antitrust AND regulation AND news",
+          "Amazon AND labor unions AND politics AND news",
+          "Amazon AND sales tax AND legislation AND news",
+          "Amazon AND worker rights AND government AND news",
+          "Amazon AND European Union AND taxation AND news",
+          "Amazon AND Jeff Bezos AND political donations AND news",
+          "Amazon AND congressional hearing AND news",
+          "Amazon AND political lobbying AND e-commerce AND news"
+        ],
+    "Nvidia": [
+          "Nvidia AND politics AND semiconductors AND news",
+          "Nvidia AND government AND artificial intelligence AND news",
+          "Nvidia AND trade policy AND technology AND news",
+          "Nvidia AND semiconductor export AND policy AND news",
+          "Nvidia AND AI AND government oversight AND news",
+          "Nvidia AND Taiwan AND geopolitics AND news",
+          "Nvidia AND export controls AND semiconductors AND news",
+          "Nvidia AND Jensen Huang AND industry advocacy AND news",
+          "Nvidia AND political risk AND supply chain AND news",
+          "Nvidia AND government subsidies AND chip industry AND news"
+        ]
+      
+    
+  
+}

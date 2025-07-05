@@ -8,6 +8,7 @@ import twitter_client as tc
 import working_wjson as wj
 
 
+
 class NewsExtractor:
     def __init__(self, lang='en', country='US'):
         #Initialize Google News client
@@ -52,7 +53,7 @@ class NewsExtractor:
             # Extract articles
             entries = search_result['entries'][:max_results]
             results={}
-           
+            count=0
             for entry in entries:
                 # Clean title and summary
                 raw_title = entry.get('title', 'No title')
@@ -63,10 +64,9 @@ class NewsExtractor:
                     'title': self.clean_text(raw_title),
                     'summary': self.clean_text(raw_summary),
                     'provider': entry.get('published', ''),
-                    #'source': entry.get('source', {}).get('title', 'Unknown'),
-                    #'link': entry.get('link', ''), think on add link always i can in this return dict...
                 }
-                results[entry.get('id', '')] = article
+                results[count] = article
+                count=count+1
             return results
             
         except Exception as e:
@@ -75,6 +75,20 @@ class NewsExtractor:
         
     
       #extract news from y.finance, return none if not news or if error
+
+    def search_gnews_lits_of_topics(self,topics,max_results=5):
+        """Search news for a list of topics
+        return: list of dicts [{},{}...]
+        """
+        
+        news=[]
+        for topic in topics:
+            news_aux=self.search_news_google(topic,max_results=max_results)
+            news.extend(news_aux.values())
+        return news 
+
+
+        
     
     def yf_news(self,ticker):
         try:
@@ -121,18 +135,12 @@ class NewsExtractor:
             yf_all_company[i]=yf
             x_all_company[i]=x
             g_search_all_company[i]=g_search
-        print(yf_all_company)
+       
         wj.save_to_json(yf_all_company,'data/yf_news.json')
         wj.save_to_json(x_all_company,'data/x_tweets.json')
         wj.save_to_json(g_search_all_company,'data/google_news.json')
 
-    # def united_news(self):
-    #     g_news = wj.load_from_json('data/google_news.json')
-    #     y_news=wj.load_from_json('data/yf_news.json')
-    #     all_news={}
-    #     for company in self.companies.keys():
-    #         aux=g_news[company]
-    #         aux
+  
 
             
 

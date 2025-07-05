@@ -63,7 +63,7 @@ class SentimentAnalytics:
         # Weighted average
         combined_prob = (w_x * x + w_y * y + w_g * g) / (w_x + w_y + w_g)
         result = round(combined_prob, 3)
-        print(result)
+        
         return result 
     
     def calculate_combined_sentiment_metrics(self):

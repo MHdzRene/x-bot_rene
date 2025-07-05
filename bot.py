@@ -71,5 +71,5 @@ def clean_tweet(text):
 def main():
     query_tesla = 'Tesla OR TSLA OR "Model 3" OR "Model Y" OR Cybertruck -is:retweet  -from:teslapromo -discount -sale lang:en ' 
     example=search_tweets(query_tesla,50,client)
-    print(len(example))
-main()
+    
+#main()
