@@ -480,7 +480,7 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
             analysis += f"\nLimited news data available for {company_name}.\n\n"
         
         analysis += "Summary: Market conditions suggest exploitable volatility.\n\n"
-        analysis+= f"🌪 Politic Uncertainty: {uncertity}\n\n"
+        analysis+= f"🌪 Political Uncertainty: {uncertity}\n\n"
         
         # Technical Analysis Section
         analysis += "✅ Technical Analysis (Intraday)\n"
