@@ -6,6 +6,7 @@ import re
 import bot
 import working_wjson as wj
 import news
+import politics
 
 class CompanyAnalyzer:
     def __init__(self):
@@ -417,6 +418,7 @@ class CompanyAnalyzer:
 class TwitterFormattedAnalyzer(CompanyAnalyzer):
     def __init__(self):
         super().__init__()
+        self.political_uncertity=wj.load_from_json('data/uncertity_per_company.json')
         self.news_extractor= news.NewsExtractor()
     
     def format_twitter_analysis(self, company_name):
@@ -445,16 +447,27 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         combine_prob_negative=combine_prob[company_name]["Combined_Prob_negative"]* 100
         combine_prob_negative=round(combine_prob_negative)
      
+        if self.political_uncertity[company_name]<=2:
+            uncertity=' Very Low '
+        elif 2<self.political_uncertity[company_name]<=4:
+            uncertity=' Low '
+        elif 4< self.political_uncertity[company_name]<=6:
+            uncertity=' Moderate'
+        elif 6< self.political_uncertity[company_name] <= 8:
+            uncertity=' High'
+        else:
+            uncertity='Very High'
 
         # Build the formatted string
         analysis = f"""🚀 {company_name} Ai driven Analysis for Day Trading: 24h Opportunity? 📈
         Date and Time: {current_time}
-
+       
     🔍 Market Sentiment (Last 24h)"""
         
         # Add sentiment analysis
         if news_data['news_count'] > 0:
             analysis += f" Sentiment towards {company_name} is {news_data['sentiment'].lower()}\n\n"
+            
             analysis += f"📊 Sentiment statistics: \n"
             analysis += f"-Positive: {combine_prob_positive}% \n"
             analysis += f"-Negative: {combine_prob_negative}% \n\n"
@@ -467,6 +480,7 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
             analysis += f"\nLimited news data available for {company_name}.\n\n"
         
         analysis += "Summary: Market conditions suggest exploitable volatility.\n\n"
+        analysis+= f"🌪 Politic Uncertity: {uncertity}\n"
         
         # Technical Analysis Section
         analysis += "✅ Technical Analysis (Intraday)\n"

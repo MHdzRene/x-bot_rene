@@ -5,6 +5,7 @@ import news as nw
 from transformers import pipeline
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
 from ollama_config import OllamaClient, OLLAMA_CONFIG 
 
 class PoliticalUncertaintyAnalyzer:
@@ -52,7 +53,13 @@ class PoliticalUncertaintyAnalyzer:
             'geopolitical_crisis': 1.6
         }
           
+    def upadete_political_q(self,new_company,default_q=""" AND ("political" OR "policy") AND ("regulation" OR "legislation" OR "trade_policy" OR "sanction" OR "tariff") AND "news" -("opinion" OR "rumor" OR "editorial"  """):
+        queries=self.political_queries
+        queries[new_company]=[new_company + default_q]
+        wj.save_to_json(queries,'data/political_news_queries.json')
+
         
+          
     def _initialize_llm(self):
         """Initialize both HuggingFace and Ollama LLM clients."""
         # Try Ollama first (faster and more powerful)
@@ -97,15 +104,18 @@ class PoliticalUncertaintyAnalyzer:
         print('duration', end - start)
         return news_per_company
     
-    def get_news_data_using_thread(self):
-        start = time.time()
+    def get_news_data_using_thread(self,new_extraction=True,file_name='data/politic_news.json'):
+       #new parameter to avoid lose time if not interested in new news
+        if new_extraction == False:
+            return wj.load_from_json('data/politic_news.json')
+       
         
         def _fetch_company_news_throttled(self, company_queries_pair):
             company, queries = company_queries_pair
             try:
                 # Rate limiting: pequeña pausa para evitar sobrecarga
                 time.sleep(0.1)  
-                news = self.news_extractor.search_gnews_lits_of_topics(queries, 1)
+                news = self.news_extractor.search_gnews_lits_of_topics(queries, 100)
                 return company, news
             except Exception as e:
                 print(f"❌ Error fetching news for {company}: {e}")
@@ -114,7 +124,7 @@ class PoliticalUncertaintyAnalyzer:
         company_queries_pairs = list(self.political_queries.items())
         news_per_company = {}
         
-        # Usar menos workers para evitar rate limiting
+        # Use less workers avoiding rate limiting
         with ThreadPoolExecutor(max_workers=3) as executor:
             future_to_company = {
                 executor.submit(_fetch_company_news_throttled, self, pair): pair[0] 
@@ -131,8 +141,8 @@ class PoliticalUncertaintyAnalyzer:
                     print(f"❌ {company}: {e}")
                     news_per_company[company] = []
         
-        end = time.time()
-        print(f'Parallel duration: {end - start:.2f} seconds')
+        
+        wj.save_to_json(news_per_company,'data/politic_news.json')
         return news_per_company
     
     def analyze_news_political_content(self,company_name, news_data: Dict) -> Dict:
@@ -155,6 +165,7 @@ class PoliticalUncertaintyAnalyzer:
             
             # Check for general political content
             political_mentions = sum(1 for keyword in self.political_keywords if keyword in article_text)
+            print('political mentions',political_mentions)
             
             if political_mentions > 0:
                 political_articles.append({
@@ -175,7 +186,9 @@ class PoliticalUncertaintyAnalyzer:
         # Calculate normalized political uncertainty score (0-100)
         max_possible_score = len(news_data) * len(self.political_keywords)
         political_uncertainty_score = min(100, (total_political_score / max_possible_score) * 100) if max_possible_score > 0 else 0
-        
+        #this is giving me 0, see how can i calculate the score in a better way
+        print('political_uncertainty_score',political_uncertainty_score)
+
         return {
             'political_score': round(political_uncertainty_score, 2),
             'risk_factors': list(risk_factors),
@@ -186,12 +199,10 @@ class PoliticalUncertaintyAnalyzer:
     
     def analyze_with_llm(self, text: str, analysis_type: str = "political_sentiment") -> Dict:
         """
-        Analyze text using available LLM (Ollama or HuggingFace) for political sentiment insights.
-        
+        Analyze text using available LLM (Ollama or HuggingFace) for political sentiment insights.   
         Args:
             text: Text to analyze
             analysis_type: Type of analysis ('political_sentiment', 'risk_assessment', 'impact_analysis')
-        
         Returns:
             Dict with LLM analysis results
         """
@@ -218,45 +229,45 @@ class PoliticalUncertaintyAnalyzer:
         # Create specialized prompts for different analysis types
         if analysis_type == "political_sentiment":
             prompt = f"""
-Analyze the political sentiment of this text and provide a JSON response:
+            Analyze the political sentiment of this text and provide a JSON response:
 
-Text: "{text}"
+            Text: "{text}"
 
-Please respond with a JSON object containing:
-1. political_sentiment: "positive", "negative", or "neutral"
-2. uncertainty_level: "low", "medium", or "high" 
-3. confidence_score: a number between 0.0 and 1.0
-4. key_political_topics: list of identified political topics
+            Please respond with a JSON object containing:
+            1. political_sentiment: "positive", "negative", or "neutral"
+            2. uncertainty_level: "low", "medium", or "high" 
+            3. confidence_score: a number between 0.0 and 1.0
+            4. key_political_topics: list of identified political topics
 
-JSON Response:"""
-            
+            JSON Response:"""
+                    
         elif analysis_type == "risk_assessment":
-            prompt = f"""
-Analyze the business/political risk level of this text and provide a JSON response:
+                prompt = f"""
+            Analyze the business/political risk level of this text and provide a JSON response:
 
-Text: "{text}"
+            Text: "{text}"
 
-Please respond with a JSON object containing:
-1. risk_level: "low", "medium", or "high"
-2. business_impact: "minimal", "moderate", or "significant"
-3. confidence_score: a number between 0.0 and 1.0
-4. risk_factors: list of identified risk factors
+            Please respond with a JSON object containing:
+            1. risk_level: "low", "medium", or "high"
+            2. business_impact: "minimal", "moderate", or "significant"
+            3. confidence_score: a number between 0.0 and 1.0
+            4. risk_factors: list of identified risk factors
 
-JSON Response:"""
+            JSON Response:"""
 
         elif analysis_type == "impact_analysis":
-            prompt = f"""
-Analyze the potential business impact of this text and provide a JSON response:
+                    prompt = f"""
+            Analyze the potential business impact of this text and provide a JSON response:
 
-Text: "{text}"
+            Text: "{text}"
 
-Please respond with a JSON object containing:
-1. impact_level: "low", "medium", or "high"
-2. affected_sectors: list of business sectors that might be affected
-3. confidence_score: a number between 0.0 and 1.0
-4. time_horizon: "short-term", "medium-term", or "long-term"
+            Please respond with a JSON object containing:
+            1. impact_level: "low", "medium", or "high"
+            2. affected_sectors: list of business sectors that might be affected
+            3. confidence_score: a number between 0.0 and 1.0
+            4. time_horizon: "short-term", "medium-term", or "long-term"
 
-JSON Response:"""
+            JSON Response:"""
         else:
             prompt = f"Analyze this text for political content: {text}"
 
@@ -287,6 +298,7 @@ JSON Response:"""
             
             # Fallback: extract sentiment from text
             llm_lower = llm_text.lower()
+            
             
             if analysis_type == "political_sentiment":
                 if any(word in llm_lower for word in ['positive', 'optimistic', 'favorable']):
@@ -337,8 +349,100 @@ JSON Response:"""
             "fallback": True
         }
 
+    def politic_uncertity(self,summary):
+        prompt=f"""
+        Analyze the following news article in English and assign a political uncertainty score from 1 to 10, where 1 indicates minimal uncertainty (insignificant or predictable political impact on financial markets) and 10 indicates maximum uncertainty (severe, unpredictable, or disruptive political impact on markets, such as the S&P 500 or other relevant indices):
+        {summary}
+        Evaluate the magnitude of the political impact (e.g., does it affect a single company, a sector, or the entire market?).
+        Consider the likelihood of the impact occurring (e.g., is it a vague proposal or a confirmed policy?).
+        Analyze the clarity and urgency of the news (e.g., is it immediate or long-term?).
+        Use an objective approach, basing the analysis solely on the information in the news article, without external speculation.
+        Please respond with a JSON object containing:
+            political_uncertainty_score: [number int from 1 to 10],
+            justification: [Clear explanation str of why this score was assigned, considering political factors such as regulations, geopolitical tensions, fiscal policies, elections, or government stability, and their likelihood of affecting market volatility. Include potentially impacted sectors or companies if relevant.]
+        Instructions:
+        """
+        response = self.ollama_client.generate("llama2:7b", prompt)
+        
+        if response and 'response' in response:
+            llm_text = response['response']
+             # Try to extract JSON from response
+            try:
+                # Look for JSON in the response
+                import json
+                
+                # Find JSON-like content
+                start_idx = llm_text.find('{')
+                end_idx = llm_text.rfind('}') + 1
+                
+                if start_idx != -1 and end_idx != -1:
+                    json_str = llm_text[start_idx:end_idx]
+                    parsed_result = json.loads(json_str)
+                   
+                    #print(parsed_result)
+                    return parsed_result
+                    
+            except (json.JSONDecodeError, ValueError):
+                pass
+            # Fallback: extract sentiment from text
+            llm_lower = llm_text.lower()
+            return self.extract_uncertainty_data(llm_lower)
+
+        else:
+            print('not response sorry')
+            return{
+                'political_uncertainty_score':0,
+                'justification':None
+            }
+
+    def political_uncertity_average(self,new_extractor:bool):
+        news=self.get_news_data_using_thread(new_extractor)
+        average=0
+        uncertity_per_company={}
+        for company in news.keys():
+            average=0
+            total=len(news[company])
+            if total==0:
+                uncertity_per_company[company]=0
+                continue
+            for n in news[company]:
+                aux=self.politic_uncertity(n['summary'])
+                score=aux['political_uncertainty_score']
+                score=score if score<=10 else 10
+                average+=score
+                print('score',score)
+            uncertity_per_company[company]=average/total 
+            print("avarage ",average/total)
+
+        print(uncertity_per_company)
+        wj.save_to_json(uncertity_per_company,'data/uncertity_per_company.json')
+        return uncertity_per_company
+            
+    def extract_uncertainty_data(self,response_text):
+        """Extract political uncertainty score and justification from model response."""
+        try:
+            # Extract score using regex
+            score_match = re.search(r'political uncertainty score\s*:\s*(\d+)', response_text, re.IGNORECASE)
+            score = int(score_match.group(1)) if score_match else 0
+            
+            # Extract justification using regex
+            justification_match = re.search(r'justification\s*:\s*([\s\S]*?)(?=\n*(?:potentially impacted sectors|$))', response_text, re.IGNORECASE)
+            justification = justification_match.group(1).strip() if justification_match else None
+            
+            # Return dictionary
+            return {
+                'political_uncertainty_score': score,
+                'justification': justification
+            }
+        except Exception as e:
+            print(f"Error extracting data: {e}")
+            return {
+                'political_uncertainty_score': 0,
+                'justification': None
+            }
+
     def _analyze_with_huggingface(self, text: str, analysis_type: str) -> Dict:
-        """Analyze using HuggingFace models."""
+        """Analyze using HuggingFace models.fix this for analize always the sentiment"""
         if analysis_type == "political_sentiment":
             results = self.llm_client(text)
             sentiment_scores = {item['label']: item['score'] for item in results[0]}
@@ -370,7 +474,6 @@ JSON Response:"""
             "business_impact": "medium",  # Default fallback
             "llm_provider": "huggingface"
         }
-    
     
     def _calculate_enhanced_score(self, traditional_political: Dict, 
                                 sector_analysis: Dict, llm_insights: Dict) -> float:
@@ -437,11 +540,9 @@ JSON Response:"""
     def enhanced_political_analysis(self, news_data: Dict, company_name: str) -> Dict:
         """
         Enhanced political analysis combining traditional keyword matching with HuggingFace LLM insights.
-        
         Args:
             news_data: Dictionary with news articles: {company:[{},{}..]}
             company_name: Name of the company being analyzed
-        
         Returns:
             Dict with enhanced analysis including LLM insights
         """
@@ -557,35 +658,6 @@ JSON Response:"""
             'sector_weight': sector_weight,
             'risk_articles_detail': risk_articles[:3]  # Top 3 risk articles
         }
-    def _analyze_with_ollama(self, text: str, analysis_type: str) -> Dict:
-        """Analyze using Ollama (if available)."""
-        try:
-            import requests
-            
-            prompt = self._build_ollama_prompt(text, analysis_type)
-            
-            response = requests.post('http://localhost:11434/api/generate', 
-                                json={
-                                    'model': 'llama2:7b',
-                                    'prompt': prompt,
-                                    'stream': False
-                                }, timeout=30)
-            
-            if response.status_code == 200:
-                result = response.json()
-                return self._parse_ollama_response(result.get('response', ''), analysis_type)
-            else:
-                raise Exception(f"Ollama API error: {response.status_code}")
-                
-        except Exception as e:
-            print(f"❌ Ollama not available: {e}")
-            # Fallback to intelligent mapping
-            if analysis_type == "risk_assessment":
-                sentiment_result = self._analyze_with_huggingface(text, "political_sentiment")
-                return self._map_sentiment_to_risk(sentiment_result, text)
-            elif analysis_type == "impact_analysis":
-                sentiment_result = self._analyze_with_huggingface(text, "political_sentiment")
-                return self._map_sentiment_to_impact(sentiment_result, text)
 
     def _build_ollama_prompt(self, text: str, analysis_type: str) -> str:
         """Build prompt for Ollama analysis."""
@@ -614,47 +686,17 @@ JSON Response:"""
             Reasoning: [brief explanation]
             """
 
-    def _parse_ollama_response(self, response: str, analysis_type: str) -> Dict:
-        """Parse Ollama response."""
-        try:
-            lines = response.strip().split('\n')
-            level = "medium"  # default
-            reasoning = "Analysis completed"
-            
-            for line in lines:
-                if line.startswith('Risk:') or line.startswith('Impact:'):
-                    level = line.split(':')[1].strip().lower()
-                elif line.startswith('Reasoning:'):
-                    reasoning = line.split(':', 1)[1].strip()
-            
-            field_name = "risk_level" if analysis_type == "risk_assessment" else "business_impact"
-            
-            return {
-                field_name: level,
-                "reasoning": reasoning,
-                "confidence_score": 0.8,
-                "llm_provider": "ollama"
-            }
-        except:
-            return {
-                "risk_level": "medium",
-                "business_impact": "medium",
-                "reasoning": "Parsing error, using default",
-                "llm_provider": "ollama_fallback"
-            }
+    
 
 
 def main():
+    #companies=["Tesla","Microsoft", "Nvidia", "Apple", "Amazon", "Alphabet", "Tesla"]
     politics=PoliticalUncertaintyAnalyzer()
-    news_data=politics.get_news_data_using_thread()
+    #news_data=politics.get_news_data_using_thread()
+    #print(news_data['Tesla'])
+    #print(politics.enhanced_political_analysis(news_data,'Tesla'))
+    #political_uncertity=politics.politic_uncertity( "Third parties like the one Musk wants to form almost always fail. There's a better template for billionaires who want to be political bosses.")
+    politics.political_uncertity_average(True)
 
 
-    s=time.time()
-    companies=["Microsoft", "Nvidia", "Apple", "Amazon", "Alphabet", "Tesla"]
-    for company in companies:
-        print(politics.enhanced_political_analysis(news_data,company))
-       
-    e=time.time()
-    print(e-s)
-    
-main()
+#main()

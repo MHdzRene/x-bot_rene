@@ -3,6 +3,8 @@
 import company_analyzer
 import sentiment_analytics
 import news
+import politics 
+import datetime 
 
 
 def main():
@@ -16,6 +18,10 @@ def main():
     # update each news file data_total_analyze_file
     company_a.get_multi_source_sentiment_analysis()
 
+   
+    # update uncertity_per_company and politics news(it will take a while so go back to sleep jaja)
+    politics.main()
+ 
     # Initialize analytics engine
     analytics = sentiment_analytics.SentimentAnalytics()
     # update combined prob file
@@ -24,7 +30,9 @@ def main():
     #now run bot for post completed updated analysis
     #analysis of all companies saved in the class CompanyAnalyzer
     for i in company_a.companies.keys():
-        company_analyzer.post_company_analysis(i)
+         company_analyzer.post_company_analysis(i)
+    #company_analyzer.post_company_analysis('Tesla')
+    
  
 
 main()
