@@ -31,7 +31,7 @@ def main():
     #analysis of all companies saved in the class CompanyAnalyzer
     for i in company_a.companies.keys():
          company_analyzer.post_company_analysis(i)
-    #company_analyzer.post_company_analysis('Tesla')
+   # company_analyzer.post_company_analysis('Tesla')
     
  
 

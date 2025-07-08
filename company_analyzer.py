@@ -459,10 +459,9 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
             uncertity='Very High'
 
         # Build the formatted string
-        analysis = f"""🚀 {company_name} Ai driven Analysis for Day Trading: 24h Opportunity? 📈
-        Date and Time: {current_time}
-       
-    🔍 Market Sentiment (Last 24h)"""
+        analysis = f"""🚀 {company_name} Ai driven Analysis for Day Trading: 24h Opportunity? 📈\n"""
+        analysis+=f""" Date and Time: {current_time}\n\n"""
+        analysis+=f"""🔍 Market Sentiment (Last 24h)\n"""
         
         # Add sentiment analysis
         if news_data['news_count'] > 0:
@@ -474,13 +473,14 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
             
             analysis += f"🗞 News Sample: \n"
             for article in news_data['articles'][:2]:
-                emoji = "📉" if "Negative" in article['sentiment'] else "📈" if "Positive" in article['sentiment'] else "➡️"
-                analysis += f"{emoji} {article['sentiment'].replace('📈 ', '').replace('📉 ', '').replace('➡️ ', '')}: {article['title'][:60]}... ({article['publisher']})\n"
+        #         emoji = "📉" if "Negative" in article['sentiment'] else "📈" if "Positive" in article['sentiment'] else "➡️"
+        #         analysis += f"{emoji} {article['sentiment'].replace('📈 ', '').replace('📉 ', '').replace('➡️ ', '')}: {article['title'][:60]}... ({article['publisher']})\n"
+                  analysis += f"🧙‍♂ {article['title'][:60]}... ({article['publisher']})\n"
         else:
             analysis += f"\nLimited news data available for {company_name}.\n\n"
         
         analysis += "Summary: Market conditions suggest exploitable volatility.\n\n"
-        analysis+= f"🌪 Politic Uncertity: {uncertity}\n"
+        analysis+= f"🌪 Politic Uncertainty: {uncertity}\n\n"
         
         # Technical Analysis Section
         analysis += "✅ Technical Analysis (Intraday)\n"
