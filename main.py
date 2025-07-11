@@ -20,7 +20,7 @@ def main():
 
    
     # update uncertity_per_company and politics news(it will take a while so go back to sleep jaja)
-    politics.main()
+    #politics.main()
  
     # Initialize analytics engine
     analytics = sentiment_analytics.SentimentAnalytics()
@@ -30,12 +30,12 @@ def main():
     #now run bot for post completed updated analysis
     #analysis of all companies saved in the class CompanyAnalyzer
     for i in company_a.companies.keys():
-         company_analyzer.post_company_analysis(i)
-   # company_analyzer.post_company_analysis('Tesla')
+        company_analyzer.post_company_analysis(i)
     
  
 
 main()
+#politics.main()
    
 
 
