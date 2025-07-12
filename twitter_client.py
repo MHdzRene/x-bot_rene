@@ -25,6 +25,21 @@ class TwitterClient:
         else:
             print("❌ Cannot initialize credentials")
             raise Exception("Failed to initialize Twitter credentials")
+        #user id
+        self.USER_ID = self.client.get_me().data.id 
+        # List of promotional accounts (usernames without @)
+        # These are the 10 accounts with 10k-30k followers that get free access
+        self.promo_accounts = [
+            'luci5425','rene_y_sherlyn',
+        ]
+
+        # Global cache for subscribers to avoid frequent API calls
+        self.subscribers_cache = []
+        self.last_update = 0
+        # Global set for authorized users (subscribers + promo accounts)
+        self.authorized_users = set()
+
+        
     
     def create_tweet(self, text):
         """Creates a tweet safely with error handling"""
@@ -121,5 +136,120 @@ class TwitterClient:
         print("✅ Done!")
         return analysis
 
+    #fix this part to only respond to subcrit [people]
+    def load_subscribers(self,user_id):
+        """
+        Function to load subscribers from X API
+        Note: This uses a hypothetical endpoint; check developer.x.com for the exact one
+        If the endpoint doesn't exist, you may need to export manually or use alternatives
+        """
+        try:
+            # Hypothetical API call to get subscriptions (adjust based on actual docs)
+            # Example: subscribers = client.get_users_subscriptions(id=user_id)
+            # For demonstration, assuming it's available; replace with real call
+            subscribers_response = self.client.get_users_subscriptions(id=user_id)  # Placeholder
+            if subscribers_response.data:
+                return [sub['username'] for sub in subscribers_response.data]
+            else:
+                return []
+        except tweepy.TweepyException as e:
+            print(f"Error loading subscribers: {e}")
+            return []
+        
+    def get_updated_subscribers(self,user_id):
+        """
+        Function to get updated subscribers with caching (update every hour)
+        """
+        if time.time() - self.last_update > 3600:  # 3600 seconds = 1 hour
+            self.subscribers_cache = self.load_subscribers(user_id)
+            self.last_update = time.time()
+        return self.subscribers_cache
+    
+    def load_authorized(self,user_id):
+        """
+        Function to load or update authorized users
+        """
+        subscribers = self.get_updated_subscribers(user_id)
+        self.authorized_users = set(subscribers + self.promo_accounts)
+        print(self.authorized_users)
 
+    def is_authorized(self,username):
+        """Function to check if a username is authorized"""
+        return username in self.authorized_users
+    #until here
+  
+    def generate_ai_analysis(self,company_name):
+        # Example: Parse text for stock symbol and return analysis
+        # In real implementation, integrate your AI here
+        analysis = ca.get_company_analysis(company_name)
+        return f" {analysis} "
+    
+    def contains_company(self,text):
+        # Regex para tickers como $TSLA, $AAPL (1-5 letras uppercase)
+        ticker_pattern = r'\$[A-Z]{1,5}'
+        # O nombres comunes (agrega más si quieres)
+        company_names = ['Tesla', 'Apple', 'Amazon', "Alphabet", 'Microsoft','Nvidia']  # Expande esta lista
+        if re.search(ticker_pattern, text):
+            return True #fix to obten ticker 
+        for name in company_names:
+            if name.lower() in text.lower():
+                return name
+        return None
 
+     #Nuevo método para monitorizar y responder mentions
+
+    def monitor_and_respond_mentions(self):
+        print("Starting monitoring for new mentions...")
+        last_mention_id = None  # Para tests, setea a un ID reciente si sabes uno, e.g., 1944122257439416808
+        base_sleep = 90  # Ajustado para Basic tier: ~10 requests/15 min
+        max_backoff = 900  # Max 15 min
+
+        while True:
+            try:
+                # Fetch con since_id, sin return_json
+                mentions_response = self.client.get_users_mentions(
+                    id=self.USER_ID,
+                    since_id=last_mention_id,
+                    expansions=['author_id'],
+                    user_fields=['username']
+                )
+                
+                # Log rate limit no disponible directamente, pero maneja en except
+
+                if mentions_response.data:
+                    users_map = {user.id: user for user in mentions_response.includes.get('users', [])}
+                    
+                    for mention in reversed(mentions_response.data):
+                        author_id = mention.author_id
+                        user = users_map.get(author_id)
+                        if not user:
+                            print("User not found.")
+                            continue
+                        
+                        username = user.username
+                        text = mention.text
+                        
+                        # Para prueba: ignora autorización, responde si contiene company
+                        if self.contains_company(text) != None:
+                            company_name=self.contains_company(text)
+                            analysis=self.generate_ai_analysis(company_name)
+                            response_text = f" {analysis} "
+                            self.client.create_tweet(in_reply_to_tweet_id=mention.id, text=response_text)
+                            print(f"Responded to @{username}: {text}")
+                        else:
+                            print(f"No company in mention: {text}")
+                    
+                    last_mention_id = mentions_response.data[0].id  # Actualiza a newest
+                
+                time.sleep(base_sleep)
+            
+            except tweepy.errors.TooManyRequests as e:
+                # Extrae reset de headers
+                reset_time = int(e.response.headers.get('x-rate-limit-reset', time.time() + 900)) if e.response else time.time() + 900
+                wait_time = max(30, reset_time - int(time.time()))
+                print(f"Rate limit hit. Waiting {wait_time} seconds for reset.")
+                time.sleep(wait_time)
+            
+            except tweepy.TweepyException as e:
+                print(f"Error: {e}")
+                time.sleep(60)
