@@ -174,6 +174,18 @@ class NewsExtractor:
         tweets=self.tc.search_tweets(query,max_results=30)
         return tweets
     
+    def update_queries(self,ticker,company_name):
+        querie=self.generate_standard_x_query(ticker)
+        self.queries[company_name]= querie
+        wj.save_to_json(self.queries,'data/queries_x.json')
+
+    def generate_standard_x_query(company_name, ticker):
+        """
+        Genera una query estándar para X donde solo necesitas el nombre de la compañía
+        """
+        standard_query = f"{company_name} OR {ticker} -is:retweet -is:reply -discount -sale lang:en"
+        return standard_query
+
     def save_news(self):
         yf_all_company={}
         x_all_company={}

@@ -5,21 +5,13 @@ from datetime import datetime, timedelta
 import re
 import bot
 import working_wjson as wj
-import news
-import politics
+import news 
+
 
 class CompanyAnalyzer:
     def __init__(self):
         # Top 5 tech companies with their ticker symbols
-        self.companies = {
-            'Microsoft': 'MSFT',
-            'Nvidia': 'NVDA', 
-            'Apple': 'AAPL',
-            'Amazon': 'AMZN',
-            'Alphabet': 'GOOGL',
-            'Tesla': 'TSLA',
-        }
-    
+        self.companies = wj.load_from_json('data/companies.json')
     def get_company_fundamentals(self, ticker):
         """Get fundamental data for a company"""
         try:
@@ -120,8 +112,16 @@ class CompanyAnalyzer:
     
     def get_news_sentiment(self,news):
         """Get news sentiment for a company"""
-        if news == None:
-            return {'sentiment': 'No news available', 'news_count': 0, 'articles': []}
+        if news == None or len(news) == 0:
+            return {
+                'sentiment': 'No news available', 
+                'news_count': 0, 
+                'positive_count': 0,
+                'positive_porcent': 0,
+                'negative_count': 0,
+                'negative_porcent': 0,
+                'articles': []
+            }
             
         # Keywords for sentiment analysis
             # Expanded positive keywords list
@@ -164,13 +164,21 @@ class CompanyAnalyzer:
         else:
             overall_sentiment = "➡️ Overall Neutral"
             
+        # Calculate percentages safely (avoid division by zero)
+        if len(analyzed_articles) > 0:
+            positive_porcent = total_positive*100/len(analyzed_articles)
+            negative_porcent = total_negative*100/len(analyzed_articles)
+        else:
+            positive_porcent = 0
+            negative_porcent = 0
+        
         return {
             'sentiment': overall_sentiment,
             'news_count': len(analyzed_articles),
             'positive_count': total_positive,
-            'positive_porcent': total_positive*100/len(analyzed_articles),
+            'positive_porcent': positive_porcent,
             'negative_count': total_negative,
-            'negative_porcent': total_negative*100/len(analyzed_articles),
+            'negative_porcent': negative_porcent,
             'articles': analyzed_articles
         }
     
@@ -393,6 +401,14 @@ class CompanyAnalyzer:
             'sample_G': sample_size_g    # Number of Google News articles analyzed
         }
       
+    def get_company_name_from_ticker(self,ticker):
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+            return info.get('longName', ticker)  # Devuelve el nombre completo
+        except:
+            return ticker  # Si falla, devuelve el ticker
+      
     def get_multi_source_sentiment_analysis(self, queries_path='data/queries_x.json'):
         """
         Performs comprehensive sentiment analysis for multiple companies using three data sources:
@@ -421,20 +437,32 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         self.political_uncertity=wj.load_from_json('data/uncertity_per_company.json')
         self.news_extractor= news.NewsExtractor()
     
-    def format_twitter_analysis(self, company_name):
+    def format_twitter_analysis(self, company_name='Tesla',ticker=None):
         """Generate a Twitter-formatted analysis string for a company"""
-        ticker = self.companies.get(company_name)
-        if not ticker:
-            return f"Company {company_name} not found in database"
+        if ticker == None:
+            ticker = self.companies.get(company_name)
+            if not ticker:
+                return f"Company {company_name} not found in database"
         
         # Get all the data
         fundamentals = self.get_company_fundamentals(ticker)
         technical = self.get_technical_analysis(ticker)
 
         news=wj.load_from_json('data/yf_news.json')
-        news=news[company_name]
-
-        news_data = self.get_news_sentiment(news)
+        
+        # Find the company name in news (case-insensitive)
+        news_key = None
+        for key in news.keys():
+            if key.lower() == company_name.lower():
+                news_key = key
+                break
+        
+        # Use the found key or default to None
+        if news_key:
+            news_data = self.get_news_sentiment(news[news_key])
+        else:
+            print(f"Warning: No news data found for {company_name}")
+            news_data = self.get_news_sentiment(None)
        
         
         # Current date and time
@@ -442,18 +470,46 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
         
         #combine prob
         combine_prob=wj.load_from_json('data/Combined_Prob.json') 
-        combine_prob_positive=combine_prob[company_name]["Combined_Prob_positive"]* 100
-        combine_prob_positive=round(combine_prob_positive,3)
-        combine_prob_negative=combine_prob[company_name]["Combined_Prob_negative"]* 100
-        combine_prob_negative=round(combine_prob_negative)
+        
+        # Find the company name in combine_prob (case-insensitive)
+        combine_prob_key = None
+        for key in combine_prob.keys():
+            if key.lower() == company_name.lower():
+                combine_prob_key = key
+                break
+        
+        # Use default values if company not found
+        if combine_prob_key:
+            combine_prob_positive=combine_prob[combine_prob_key]["Combined_Prob_positive"]* 100
+            combine_prob_positive=round(combine_prob_positive,3)
+            combine_prob_negative=combine_prob[combine_prob_key]["Combined_Prob_negative"]* 100
+            combine_prob_negative=round(combine_prob_negative)
+        else:
+            print(f"Warning: No sentiment data found for {company_name}, using defaults")
+            combine_prob_positive = 50.0
+            combine_prob_negative = 50.0
      
-        if self.political_uncertity[company_name]<=2:
+        # Find the company name in political_uncertity (case-insensitive)
+        political_uncertity_key = None
+        for key in self.political_uncertity.keys():
+            if key.lower() == company_name.lower():
+                political_uncertity_key = key
+                break
+        
+        # Use default value if company not found
+        if political_uncertity_key:
+            political_value = self.political_uncertity[political_uncertity_key]
+        else:
+            print(f"Warning: No political uncertainty data found for {company_name}, using default")
+            political_value = 5  # Default moderate uncertainty
+        
+        if political_value<=2:
             uncertity=' Very Low '
-        elif 2<self.political_uncertity[company_name]<=4:
+        elif 2<political_value<=4:
             uncertity=' Low '
-        elif 4< self.political_uncertity[company_name]<=6:
+        elif 4< political_value<=6:
             uncertity=' Moderate'
-        elif 6< self.political_uncertity[company_name] <= 8:
+        elif 6< political_value <= 8:
             uncertity=' High'
         else:
             uncertity='Very High'
@@ -565,7 +621,7 @@ class TwitterFormattedAnalyzer(CompanyAnalyzer):
     
 
 #idk where put this method
-def get_company_analysis(company_name):
+def get_company_analysis(company_name=None,ticker=None):
     """
     Get Twitter-formatted analysis for any company.
     
@@ -576,7 +632,17 @@ def get_company_analysis(company_name):
         str: Formatted analysis string ready for Twitter
     """
     analyzer = TwitterFormattedAnalyzer()
-    return analyzer.format_twitter_analysis(company_name)
+    if company_name== None and ticker!= None:
+        company_name=analyzer.get_company_name_from_ticker(ticker)
+        analyzer.news_extractor.update_queries(ticker,company_name)
+        #now update all json
+        import updater_jsons
+        updater=updater_jsons.updater_data()
+        updater.update_all_json(company_name,ticker)
+        print('all good')
+
+
+    return analyzer.format_twitter_analysis(company_name,ticker)
 
 def post_company_analysis(company_name):
     """Get analysis for a company and post it to Twitter"""
@@ -592,5 +658,8 @@ def post_company_analysis(company_name):
     
     print("✅ Done!")
     return analysis
+
+if __name__ == "__main__":
+    print(get_company_analysis(ticker='PG'))
 
 

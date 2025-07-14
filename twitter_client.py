@@ -2,7 +2,7 @@ import tweepy
 import time
 import get_creds
 import re
-import company_analyzer as ca
+from datetime import datetime, timedelta
 
 class TwitterClient:
     def __init__(self):
@@ -127,6 +127,7 @@ class TwitterClient:
         print(f"📊 Getting analysis for {company_name}...")
     
         # Get the formatted analysis
+        import company_analyzer as ca
         analysis = ca.get_company_analysis(company_name)
     
         # Post to Twitter
@@ -178,14 +179,15 @@ class TwitterClient:
         return username in self.authorized_users
     #until here
   
-    def generate_ai_analysis(self,company_name):
+    def generate_ai_analysis(self,company_name,ticker):
         # Example: Parse text for stock symbol and return analysis
         # In real implementation, integrate your AI here
-        analysis = ca.get_company_analysis(company_name)
+        import company_analyzer as ca
+        analysis = ca.get_company_analysis(company_name,ticker)
         return f" {analysis} "
     
     def contains_company(self,text):
-        # Regex para tickers como $TSLA, $AAPL (1-5 letras uppercase)
+        # Regex para tickers como $TSLA, $AAPL (1-5 letras uppercase) fix this method
         ticker_pattern = r'\$[A-Z]{1,5}'
         # O nombres comunes (agrega más si quieres)
         company_names = ['Tesla', 'Apple', 'Amazon', "Alphabet", 'Microsoft','Nvidia']  # Expande esta lista
@@ -194,6 +196,26 @@ class TwitterClient:
         for name in company_names:
             if name.lower() in text.lower():
                 return name
+        return None
+    
+    def extract_ticker_from_text(self, text):
+        """
+        Extrae el ticker exacto que escribió el usuario en el texto
+        
+        Args:
+            text (str): El texto donde buscar el ticker
+            
+        Returns:
+            str: El ticker encontrado (sin el símbolo $) o None si no encuentra nada
+        """
+        # Regex para tickers como $TSLA, $AAPL (1-5 letras uppercase)
+        ticker_pattern = r'\$([A-Z]{1,5})'
+        
+        # Buscar ticker pattern ($TSLA, $AAPL, etc.)
+        ticker_match = re.search(ticker_pattern, text)
+        if ticker_match:
+            return ticker_match.group(1)  # Devuelve solo el ticker sin el $ (ej: "TSLA")
+        
         return None
 
      #Nuevo método para monitorizar y responder mentions
@@ -206,10 +228,14 @@ class TwitterClient:
 
         while True:
             try:
-                # Fetch con since_id, sin return_json
+                # Calcular tiempo de hace 5 minutos
+                five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+                
+                # Fetch con since_id y start_time para últimos 5 minutos
                 mentions_response = self.client.get_users_mentions(
                     id=self.USER_ID,
                     since_id=last_mention_id,
+                    start_time=five_minutes_ago,
                     expansions=['author_id'],
                     user_fields=['username']
                 )
@@ -230,14 +256,11 @@ class TwitterClient:
                         text = mention.text
                         
                         # Para prueba: ignora autorización, responde si contiene company
-                        if self.contains_company(text) != None:
-                            company_name=self.contains_company(text)
-                            analysis=self.generate_ai_analysis(company_name)
-                            response_text = f" {analysis} "
-                            self.client.create_tweet(in_reply_to_tweet_id=mention.id, text=response_text)
-                            print(f"Responded to @{username}: {text}")
-                        else:
-                            print(f"No company in mention: {text}")
+                        company_ticker=self.extract_ticker_from_text(text)
+                        analysis=self.generate_ai_analysis(ticker=company_ticker,company_name=None)
+                        response_text= analysis
+                        self.client.create_tweet(in_reply_to_tweet_id=mention.id, text=response_text)
+                        print(f"Responded to @{username}: {text}")
                     
                     last_mention_id = mentions_response.data[0].id  # Actualiza a newest
                 
