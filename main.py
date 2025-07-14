@@ -36,7 +36,7 @@ def main():
 
 #main()
 #politics.main()
-print(company_analyzer.get_company_analysis(company_name="StarBucks", ticker='SBUX'))
+#print(company_analyzer.get_company_analysis(company_name="StarBucks", ticker='SBUX'))
 
    
 

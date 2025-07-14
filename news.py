@@ -175,11 +175,11 @@ class NewsExtractor:
         return tweets
     
     def update_queries(self,ticker,company_name):
-        querie=self.generate_standard_x_query(ticker)
+        querie=self.generate_standard_x_query(company_name,ticker)
         self.queries[company_name]= querie
         wj.save_to_json(self.queries,'data/queries_x.json')
 
-    def generate_standard_x_query(company_name, ticker):
+    def generate_standard_x_query(self,company_name, ticker):
         """
         Genera una query estándar para X donde solo necesitas el nombre de la compañía
         """
@@ -203,13 +203,7 @@ class NewsExtractor:
         wj.save_to_json(g_search_all_company,'data/google_news.json')
     
 
-def main():
-    topic=' "Tesla" AND ("political" OR "policy") AND ("regulation" OR "legislation" OR "trade_policy" OR "sanction" OR "tariff") AND "news" -("opinion" OR "rumor" OR "editorial")'
-    ne=NewsExtractor()
-    # news_filtered=ne.search_news_google_filter_time(topic,100)
-    # print(len(news_filtered))
-    # print(news_filtered)
-    ne.yf_news("TSLA")
+
 
     
   

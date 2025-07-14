@@ -3,6 +3,7 @@ import time
 import get_creds
 import re
 from datetime import datetime, timedelta
+import working_wjson as wj
 
 class TwitterClient:
     def __init__(self):
@@ -37,7 +38,7 @@ class TwitterClient:
         self.subscribers_cache = []
         self.last_update = 0
         # Global set for authorized users (subscribers + promo accounts)
-        self.authorized_users = set()
+        self.authorized_users =set(wj.load_from_json('data/authorized_users.json')) 
 
         
     
@@ -254,14 +255,19 @@ class TwitterClient:
                         
                         username = user.username
                         text = mention.text
-                        
-                        # Para prueba: ignora autorización, responde si contiene company
-                        company_ticker=self.extract_ticker_from_text(text)
-                        analysis=self.generate_ai_analysis(ticker=company_ticker,company_name=None)
-                        response_text= analysis
-                        self.client.create_tweet(in_reply_to_tweet_id=mention.id, text=response_text)
-                        print(f"Responded to @{username}: {text}")
-                    
+
+                        if self.is_authorized(username):
+                            # Para prueba: ignora autorización, responde si contiene company
+                            company_ticker=self.extract_ticker_from_text(text)
+                            analysis=self.generate_ai_analysis(ticker=company_ticker,company_name=None)
+                            response_text= analysis
+                            self.client.create_tweet(in_reply_to_tweet_id=mention.id, text=response_text)
+                            print(f"Responded to @{username}: {text}")
+                        else:
+                            response_text= 'You can subcribe to our plan or ask to the dm for a free trial'
+                            self.client.create_tweet(in_reply_to_tweet_id=mention.id, text=response_text)
+                            print(f"Responded to @{username}: {text}")
+
                     last_mention_id = mentions_response.data[0].id  # Actualiza a newest
                 
                 time.sleep(base_sleep)

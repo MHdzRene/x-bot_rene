@@ -405,9 +405,17 @@ class CompanyAnalyzer:
         try:
             stock = yf.Ticker(ticker)
             info = stock.info
-            return info.get('longName', ticker)  # Devuelve el nombre completo
+            name = info.get('shortName') 
+            if not name:
+                name = info.get('longName', ticker)
+                # Limpiar sufijos si es longName
+                for suffix in [' Inc.', ' Inc', ' Corporation', ' Corp']:
+                    if name.endswith(suffix):
+                        name = name[:-len(suffix)]
+                        break
+            return str(name)  # Devuelve el nombre completo
         except:
-            return ticker  # Si falla, devuelve el ticker
+            return str(ticker)  # Si falla, devuelve el ticker
       
     def get_multi_source_sentiment_analysis(self, queries_path='data/queries_x.json'):
         """
@@ -639,7 +647,7 @@ def get_company_analysis(company_name=None,ticker=None):
         import updater_jsons
         updater=updater_jsons.updater_data()
         updater.update_all_json(company_name,ticker)
-        print('all good')
+        
 
 
     return analyzer.format_twitter_analysis(company_name,ticker)
@@ -660,6 +668,8 @@ def post_company_analysis(company_name):
     return analysis
 
 if __name__ == "__main__":
-    print(get_company_analysis(ticker='PG'))
+    print(get_company_analysis(ticker='AMD'))
+
+
 
 
