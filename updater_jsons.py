@@ -28,11 +28,11 @@ class updater_data():
         pass
 
 
-    def update_news(self):
+    def update_news(self,company_name):
         """
         updating yf_news, google_news and x_tweets, try first update the companies if not is for nothing probably
         """
-        self.news_extractor.save_news()
+        self.news_extractor.save_single_company_news(company_name)
 
     def update_data_analyze(self):
         """
@@ -46,10 +46,15 @@ class updater_data():
 
     def update_all_json(self,new_company,new_ticker):
         self.add_company_to_companies(new_company,new_ticker)
-        self.update_news()
+        self.update_news(new_company)
         self.update_data_analyze()
         self.update_combine_prob
-
+        
+    # Optimizar para procesar múltiples empresas en una sola sesión
+    def update_multiple_companies(self, companies_list):
+        # Una sola instancia de TwitterClient para todas las empresas
+        for company in companies_list:
+            self.update_news(company)
 
 
 

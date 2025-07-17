@@ -10,14 +10,12 @@ import dateutil.parser  # For parsing various date formats
 
 
 
-
-
 class NewsExtractor:
     def __init__(self, lang='en', country='US'):
         #Initialize Google News client
         self.gn = GoogleNews(lang=lang, country=country)
         #initialize x client
-        self.tc= tc.TwitterClient()
+        self.tc = tc.get_twitter_client()
         #initialize copany_analyzer
         self.companies = wj.load_from_json('data/companies.json')
         self.queries= wj.load_from_json('data/queries_x.json')
@@ -202,6 +200,26 @@ class NewsExtractor:
         wj.save_to_json(x_all_company,'data/x_tweets.json')
         wj.save_to_json(g_search_all_company,'data/google_news.json')
     
+    def save_single_company_news(self,company_name):
+        yf_all_companies=wj.load_from_json('data/yf_news.json')
+        x_all_companies=wj.load_from_json('data/x_tweets.json')
+        g_all_companies=wj.load_from_json('data/google_news.json')
+
+        yf=self.yf_news(self.companies[company_name])
+        #update yf all news
+        yf_all_companies[company_name]=yf
+        #update x all news
+        x=self.x_tweets(self.queries[company_name])
+        x_all_companies[company_name]=x
+        #update google all news
+        g_search=self.search_news_google(company_name)
+        g_all_companies[company_name]=g_search
+        #save updates
+        wj.save_to_json(yf_all_companies,'data/yf_news.json')
+        wj.save_to_json(x_all_companies,'data/x_tweets.json')
+        wj.save_to_json(g_all_companies,'data/google_news.json')
+
+
 
 
 

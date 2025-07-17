@@ -5,6 +5,26 @@ import re
 from datetime import datetime, timedelta
 import working_wjson as wj
 
+
+#global variable for singleton
+_twitter_client_instance = None
+
+def get_twitter_client():
+    """
+    Obtiene la instancia singleton de TwitterClient.
+    Solo se crea una vez durante toda la ejecución del programa.
+    """
+    global _twitter_client_instance
+    if _twitter_client_instance is None:
+        _twitter_client_instance = TwitterClient()
+    return _twitter_client_instance
+
+def reset_twitter_client():
+    """Reinicia el singleton - útil para testing"""
+    global _twitter_client_instance
+    _twitter_client_instance = None
+    
+
 class TwitterClient:
     def __init__(self):
         """Initialize Twitter client with credentials"""

@@ -12,6 +12,7 @@ class CompanyAnalyzer:
     def __init__(self):
         # Top 5 tech companies with their ticker symbols
         self.companies = wj.load_from_json('data/companies.json')
+        
     def get_company_fundamentals(self, ticker):
         """Get fundamental data for a company"""
         try:
@@ -643,7 +644,7 @@ def get_company_analysis(company_name=None,ticker=None):
     if company_name== None and ticker!= None:
         company_name=analyzer.get_company_name_from_ticker(ticker)
         analyzer.news_extractor.update_queries(ticker,company_name)
-        #now update all json
+        #now update all json fix, only add
         import updater_jsons
         updater=updater_jsons.updater_data()
         updater.update_all_json(company_name,ticker)
