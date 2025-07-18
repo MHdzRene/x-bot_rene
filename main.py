@@ -20,7 +20,7 @@ def main():
 
    
     # update uncertity_per_company and politics news(it will take a while so go back to sleep jaja)
-    #politics.main()
+    politics.main()
  
     # Initialize analytics engine
     analytics = sentiment_analytics.SentimentAnalytics()
