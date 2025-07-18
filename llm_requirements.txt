@@ -1,27 +1,29 @@
-# LLM Integration Dependencies for politics.py
 
-# Core dependencies (always required)
-requests>=2.28.0
+# Requerimientos para LLM, análisis financiero y extracción de noticias
+
+# LLM y NLP
 transformers>=4.20.0
 torch>=1.12.0
+openai>=1.0.0           # OpenAI GPT
+anthropic>=0.3.0         # Claude
+huggingface-hub>=0.15.0  # HuggingFace
+ollama                   # Modelos locales (opcional)
 
-# Optional LLM providers (install as needed)
-openai>=1.0.0          # For OpenAI GPT models
-anthropic>=0.3.0       # For Claude models  
-huggingface-hub>=0.15.0 # For HuggingFace models
+# Extracción de noticias y datos financieros
+tweepy>=4.0.0
+feedparser>=6.0.0
+pygooglenews>=0.1.2
+yfinance>=0.2.0
+requests>=2.28.0
+python-dateutil>=2.8.0
 
-# Local LLM support
-ollama                 # For local Ollama models (optional)
-
-# Additional utilities
-numpy>=1.21.0
+# Análisis y utilidades
 pandas>=1.4.0
+numpy>=1.21.0
 
-# Installation commands:
-# pip install openai anthropic transformers torch requests
-# pip install huggingface-hub
-# 
-# For local models:
+# Instalación recomendada:
+# pip install -r llm_requirements.txt
+# Para Ollama local:
 # pip install ollama
-# OR
+# o
 # curl -fsSL https://ollama.ai/install.sh | sh

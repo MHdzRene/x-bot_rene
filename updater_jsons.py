@@ -30,9 +30,38 @@ class updater_data():
 
     def update_news(self,company_name):
         """
-        updating yf_news, google_news and x_tweets, try first update the companies if not is for nothing probably
+        updating yf_news, google_news and x_tweets, then update sentiment and political uncertainty for this company
         """
         self.news_extractor.save_single_company_news(company_name)
+        # After saving news, update sentiment and political uncertainty for this company
+        self.update_data_analyze_for_company(company_name)
+        self.update_political_uncertainty_for_company(company_name)
+
+    def update_data_analyze_for_company(self, company_name):
+        """
+        Update sentiment analysis for a single company (ensures key consistency)
+        """
+        # Load all news
+        import company_analyzer as ca
+        analyzer = ca.CompanyAnalyzer()
+        metrics = analyzer.get_single_company_sentiment_metrics(company_name)
+        # Load and update data_total_analyze.json
+        data_path = self.data_total_analyze_address
+        data = wj.load_from_json(data_path)
+        data[company_name] = metrics
+        wj.save_to_json(data, data_path)
+
+    def update_political_uncertainty_for_company(self, company_name):
+        """
+        Update political uncertainty for a single company (ensures key consistency)
+        """
+        # This is a placeholder: implement your real-time political uncertainty calculation here
+        # For now, just set a default value if not present
+        pol_path = 'data/uncertity_per_company.json'
+        pol = wj.load_from_json(pol_path)
+        if company_name not in pol:
+            pol[company_name] = 5  # Default moderate uncertainty
+            wj.save_to_json(pol, pol_path)
 
     def update_data_analyze(self):
         """

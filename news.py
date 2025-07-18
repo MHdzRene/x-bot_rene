@@ -10,6 +10,8 @@ import dateutil.parser  # For parsing various date formats
 
 
 
+import json
+
 class NewsExtractor:
     def __init__(self, lang='en', country='US'):
         #Initialize Google News client
@@ -45,32 +47,37 @@ class NewsExtractor:
         return text
     
     def search_news_google(self, topic, max_results=60):
-        """Search news for a specific topic"""
+        """Search news for a specific topic, with debug and fallback."""
         try:
-            # Search for news
+            print(f"[DEBUG] GoogleNews: Searching for topic: '{topic}'")
             search_result = self.gn.search(topic)
-            
-            # Extract articles
-            entries = search_result['entries'][:max_results]
-            results={}
-            count=0
+            entries = search_result.get('entries', [])[:max_results]
+            print(f"[DEBUG] GoogleNews: Found {len(entries)} entries for topic '{topic}'")
+            if len(entries) == 0:
+                # Fallback: try a more specific query
+                fallback_topic = f"{topic} stock news"
+                print(f"[DEBUG] GoogleNews: No results, trying fallback topic: '{fallback_topic}'")
+                search_result = self.gn.search(fallback_topic)
+                entries = search_result.get('entries', [])[:max_results]
+                print(f"[DEBUG] GoogleNews: Fallback found {len(entries)} entries for topic '{fallback_topic}'")
+            results = {}
+            count = 0
             for entry in entries:
-                # Clean title and summary
                 raw_title = entry.get('title', 'No title')
                 raw_summary = entry.get('summary', 'No summary')
-                raw_summary=self.clean_text(raw_summary)
-                
+                raw_summary = self.clean_text(raw_summary)
                 article = {
                     'title': self.clean_text(raw_title),
                     'summary': self.clean_text(raw_summary),
                     'provider': entry.get('published', ''),
                 }
                 results[count] = article
-                count=count+1
+                count += 1
+            if len(results) == 0:
+                print(f"[WARN] GoogleNews: No news found for topic '{topic}' or fallback.")
             return results
-            
         except Exception as e:
-            print(f"Error searching news for {topic}: {e}")
+            print(f"[ERROR] GoogleNews: Exception searching news for {topic}: {e}")
             return None
         
     
@@ -168,9 +175,10 @@ class NewsExtractor:
             print(f"Error getting news for {ticker}: {e}")
             return None 
         
-    def x_tweets(self,query):
-        tweets=self.tc.search_tweets(query,max_results=30)
-        return tweets
+    def x_tweets(self, query):
+        # X API usage for tweet search is disabled for minimal API usage
+        print(f"[DEBUG] X/Twitter: Tweet search disabled for query: '{query}'")
+        return {}
     
     def update_queries(self,ticker,company_name):
         querie=self.generate_standard_x_query(company_name,ticker)
@@ -185,20 +193,46 @@ class NewsExtractor:
         return standard_query
 
     def save_news(self):
-        yf_all_company={}
-        x_all_company={}
-        g_search_all_company={}
-        for i in self.companies.keys():
-            yf=self.yf_news(self.companies[i])
-            g_search=self.search_news_google(i)
-            x=self.x_tweets(self.queries[i])
-            yf_all_company[i]=yf
-            x_all_company[i]=x
-            g_search_all_company[i]=g_search
-       
-        wj.save_to_json(yf_all_company,'data/yf_news.json')
-        wj.save_to_json(x_all_company,'data/x_tweets.json')
-        wj.save_to_json(g_search_all_company,'data/google_news.json')
+        import time
+        yf_all_company = {}
+        x_all_company = {}
+        g_search_all_company = {}
+        for company_name, ticker in self.companies.items():
+            print(f"[PIPELINE] Processing: {company_name} (Ticker: {ticker})")
+            # Yahoo Finance
+            yf = self.yf_news(ticker)
+            print(f"[PIPELINE] Yahoo Finance: {len(yf) if yf else 0} articles for {company_name}")
+            if yf is not None and yf != {}:
+                yf_all_company[company_name] = yf
+            else:
+                yf_all_company[company_name] = {}  # Always include the key
+            # Google News (use company name as topic, like test script)
+            g_search = self.search_news_google(company_name)
+            if g_search is not None and g_search != {}:
+                print(f"[PIPELINE] Google News: {len(g_search)} articles for topic '{company_name}'")
+                g_search_all_company[company_name] = g_search
+            else:
+                print(f"[WARN] Google News: No news found for topic '{company_name}'. Saving empty entry.")
+                g_search_all_company[company_name] = {}  # Always include the key
+            # X/Twitter (use company name as query, like test script)
+            x_query = f"{company_name} -is:retweet -is:reply lang:en"
+            # X API usage for tweet search is disabled for minimal API usage
+            print(f"[PIPELINE] X/Twitter: Tweet search disabled for query '{x_query}'")
+            x = {}
+            x_all_company[company_name] = x  # Always include the key
+            time.sleep(1)  # avoid rate limits
+        wj.save_to_json(yf_all_company, 'data/yf_news.json')
+        wj.save_to_json(x_all_company, 'data/x_tweets.json')
+        wj.save_to_json(g_search_all_company, 'data/google_news.json')
+        # Post-save verification
+        print("[DEBUG] Post-save verification:")
+        for fname in ['data/yf_news.json', 'data/x_tweets.json', 'data/google_news.json']:
+            try:
+                with open(fname, 'r') as f:
+                    data = json.load(f)
+                print(f"[DEBUG] {fname} contains {len(data) if isinstance(data, dict) else 'non-dict'} items after save_news.")
+            except Exception as e:
+                print(f"[DEBUG] Error reading {fname} after save: {e}")
     
     def save_single_company_news(self,company_name):
         yf_all_companies=wj.load_from_json('data/yf_news.json')
@@ -206,18 +240,26 @@ class NewsExtractor:
         g_all_companies=wj.load_from_json('data/google_news.json')
 
         yf=self.yf_news(self.companies[company_name])
-        #update yf all news
-        yf_all_companies[company_name]=yf
-        #update x all news
-        x=self.x_tweets(self.queries[company_name])
-        x_all_companies[company_name]=x
-        #update google all news
+        if yf is not None and yf != {}:
+            yf_all_companies[company_name]=yf
+        # X API usage for tweet search is disabled for minimal API usage
+        x = {}
         g_search=self.search_news_google(company_name)
-        g_all_companies[company_name]=g_search
+        if g_search is not None and g_search != {}:
+            g_all_companies[company_name]=g_search
         #save updates
         wj.save_to_json(yf_all_companies,'data/yf_news.json')
         wj.save_to_json(x_all_companies,'data/x_tweets.json')
         wj.save_to_json(g_all_companies,'data/google_news.json')
+        # Post-save verification
+        print(f"[DEBUG] Post-save verification for {company_name}:")
+        for fname in ['data/yf_news.json', 'data/x_tweets.json', 'data/google_news.json']:
+            try:
+                with open(fname, 'r') as f:
+                    data = json.load(f)
+                print(f"[DEBUG] {fname} contains {len(data) if isinstance(data, dict) else 'non-dict'} items after save_single_company_news.")
+            except Exception as e:
+                print(f"[DEBUG] Error reading {fname} after save: {e}")
 
 
 
