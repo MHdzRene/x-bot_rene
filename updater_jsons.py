@@ -26,7 +26,7 @@ class updater_data():
 
     def update_company(self):
         pass
-
+#new line
 
     def update_news(self,company_name):
         """
